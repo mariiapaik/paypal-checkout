@@ -12,15 +12,15 @@
 
   <div id="paypal-button-container" style="margin-top: 20px;"></div>
 
-<!--   <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&currency=EUR&enable-funding=card,applepay,googlepay"></script> -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&currency=EUR&components=card,applepay,googlepay"></script>
+  <!-- <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8"></script> -->
   <script>
     paypal.Buttons({
       createOrder: function(data, actions) {
         return actions.order.create({
           purchase_units: [{
             amount: {
-              value: '10.00'  // 💶 сумма оплаты
+              value: '10.00'  
             }
           }]
         });
