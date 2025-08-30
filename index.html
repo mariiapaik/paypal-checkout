@@ -16,26 +16,19 @@
 
   <script>
     paypal.Buttons({
-      style: {
-        layout: 'vertical',
-        color: 'blue',
-        shape: 'rect',
-        label: 'paypal'
-      },
       createOrder: function(data, actions) {
         return actions.order.create({
           purchase_units: [{
             amount: {
-              value: '10.00',
-              currency_code: 'EUR'
+              value: '10.00'  // 💶 сумма оплаты
             }
           }]
         });
       },
       onApprove: function(data, actions) {
         return actions.order.capture().then(function(details) {
-          alert('Thank you for your payment, ' + details.payer.name.given_name + '!');
-          // сюда можно вставить редирект или вызов вебхука
+          alert('Payment successful for ' + details.payer.name.given_name);
+          // можешь тут добавить редирект или отправку в Webhook
         });
       }
     }).render('#paypal-button-container');
