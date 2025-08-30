@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Reels Guide</title>
 </head>
-<body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f8f8f8;">
+<body style="text-align:center; padding-top:100px;">
 
   <h2>Buy Reels Guide</h2>
   <p>You can pay using Apple Pay, Google Pay, a card, or PayPal.</p>
@@ -13,7 +13,7 @@
   <div id="paypal-button-container" style="margin-top: 20px;"></div>
 
   <!-- <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&currency=EUR&components=card,applepay,googlepay"></script> -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&components=applepay"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&components=buttons,applepay"></script>
   <script>
     paypal.Buttons({
       createOrder: function(data, actions) {
