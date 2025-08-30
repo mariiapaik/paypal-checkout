@@ -2,50 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Buy Reels Guide</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reels Guide</title>
 </head>
-<body style="text-align:center; padding-top:100px;">
+<body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f8f8f8;">
 
   <h2>Buy Reels Guide</h2>
-  <p>Pay using Apple Pay, Google Pay, a card, or PayPal.</p>
+  <p>You can pay using Apple Pay, Google Pay, a card, or PayPal.</p>
 
-  <div id="paypal-button-container"></div>
+  <div id="paypal-button-container" style="margin-top: 20px;"></div>
 
-  <!-- <script
-    src="https://www.paypal.com/sdk/js?client-id=sb&currency=EUR&components=buttons,funding-eligibility&enable-funding=card,applepay,googlepay">
-  </script> -->
-
-  <script
-    src="https://www.paypal.com/sdk/js?client-id=sb&currency=EUR&components=applepay">
-  </script>
-
+  <!-- <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&currency=EUR&components=card,applepay,googlepay"></script> -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&components=applepay"></script>
   <script>
     paypal.Buttons({
-      style: {
-        layout: 'vertical',
-        color: 'blue',
-        shape: 'rect',
-        label: 'pay'
-      },
       createOrder: function(data, actions) {
         return actions.order.create({
           purchase_units: [{
             amount: {
-              value: '10.00'
+              value: '10.00'  
             }
           }]
         });
       },
       onApprove: function(data, actions) {
         return actions.order.capture().then(function(details) {
-          alert('Payment completed by ' + details.payer.name.given_name);
-          // Можно вызвать Webhook или выполнить другие действия
+          alert('Payment successful for ' + details.payer.name.given_name);
+          // можешь тут добавить редирект или отправку в Webhook
         });
-      },
-      onError: function(err) {
-        console.error('Payment error:', err);
-        alert('An error occurred during the payment process.');
       }
     }).render('#paypal-button-container');
   </script>
