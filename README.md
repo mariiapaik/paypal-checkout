@@ -1,1 +1,1 @@
-# paypal-checkout
+# SDDS Course Bot
