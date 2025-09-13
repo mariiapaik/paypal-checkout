@@ -1,48 +1,54 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reels Guide</title>
-</head>
-<body style="text-align:center; padding-top:100px;">
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Оплата курса</title>
 
-  <h2>Buy Reels Guide</h2>
-  <p>You can pay using Apple Pay, Google Pay, a card, or PayPal.</p>
+<div id="app">
+  <h1>Оплата курса</h1>
+  <div id="paypal-buttons"></div>
+  <div id="msg" style="margin-top:12px;color:#888"></div>
+</div>
 
-  <div id="paypal-button-container"></div>
+<script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&currency=EUR&intent=capture&components=buttons&enable-funding=card,applepay,googlepay"></script>
+<script>
+  const qs = new URLSearchParams(location.search);
+  const uid   = qs.get('uid');
+  const ts    = qs.get('ts');
+  const state = qs.get('state');
+  const bot   = qs.get('bot'); 
 
-  <!-- <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&currency=EUR&components=card,applepay,googlepay"></script> -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&components=buttons,applepay"></script>
-  <script>
-    paypal.Buttons({
-      style: {
-        layout: 'vertical',
-        color: 'white',
-        shape: 'rect',
-        label: 'pay'
-      },
-      createOrder: function(data, actions) {
-        return actions.order.create({
-          purchase_units: [{
-            amount: {
-              value: '10.00' // Укажи сумму оплаты
-            }
-          }]
-        });
-      },
-      onApprove: function(data, actions) {
-        return actions.order.capture().then(function(details) {
-          alert('Payment completed by ' + details.payer.name.given_name);
-          // Можно вызвать Webhook или выполнить другие действия
-        });
-      },
-      onError: function(err) {
-        console.error('Payment error:', err);
-        alert('An error occurred during the payment process.');
-      }
-    }).render('#paypal-button-container');
-  </script>
+  const API = 'https://telegram-course-bot-741371625759.europe-central2.run.app'; 
 
-</body>
-</html>
+  const msg = (t,c)=>{ const el=document.getElementById('msg'); el.style.color=c||'#888'; el.textContent=t; };
+
+  if (!uid || !ts || !state) msg('Откройте эту страницу из Telegram бота (нет uid/ts/state).', '#c33');
+
+  paypal.Buttons({
+    onInit: (d,a)=>{ if(!uid||!ts||!state) a.disable(); },
+    createOrder: async ()=>{
+      msg('Создаём заказ…');
+      const r = await fetch(`${API}/payments/paypal/create`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ uid, ts, state })
+      });
+      const j = await r.json();
+      if (!r.ok || !j.id) throw new Error(j.message || 'Create order failed');
+      msg('Готово. Подтвердите оплату в виджете.');
+      return j.id;
+    },
+    onApprove: async ({orderID})=>{
+      msg('Подтверждаем оплату…');
+      const r = await fetch(`${API}/payments/paypal/capture`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ orderID, uid, ts, state })
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.message || 'Capture failed');
+      msg('✅ Оплата прошла! Вернитесь в Telegram — доступ отправлен.', '#0a0');
+      if (bot) setTimeout(()=>location.href=`https://t.me/${bot}`, 1500);
+    },
+    onError: (e)=> msg(String(e), '#c33'),
+    onCancel: ()=> msg('Оплата отменена.')
+  }).render('#paypal-buttons');
+</script>
