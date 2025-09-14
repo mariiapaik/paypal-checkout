@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Оплата курса</title>
   <style>
-    :root {
-      --bg: #0b0c10; --card: #15171c; --text: #e9edf1; --muted: #98a2b3; --accent: #4f46e5; --radius: 16px;
-    }
+    :root { --bg:#0b0c10; --card:#15171c; --text:#e9edf1; --muted:#98a2b3; --accent:#4f46e5; --radius:16px; }
     *{box-sizing:border-box} html,body{height:100%}
     body{
       margin:0; background:radial-gradient(1200px 600px at 80% -10%, #1b1e27 0, #0b0c10 55%);
@@ -31,10 +29,8 @@
     .hidden{display:none}
   </style>
 
-  <!-- PayPal SDK: включаем нужные источники оплаты -->
-  <!-- <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons&currency=EUR&intent=capture"></script> -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons,funding-eligibility&currency=EUR&intent=capture&enable-funding=applepay,card"data-sdk-integration-source="button-factory"></script>
-
+  <!-- PayPal SDK — одной строкой, без enable-funding -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons,funding-eligibility&currency=EUR&intent=capture"></script>
 </head>
 <body>
   <main class="card">
@@ -43,7 +39,6 @@
     <div class="price">€10.00 • единоразово</div>
 
     <div class="group">
-      <!-- Контейнеры кнопок -->
       <div id="paypal"></div>
       <div id="applepay" class="hidden"></div>
       <div id="googlepay" class="hidden"></div>
@@ -61,71 +56,67 @@
   </main>
 
   <script>
-  // === Конфиг ===
-  const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
-  const qs = new URLSearchParams(location.search);
-  const CTX = { uid: qs.get('uid'), ts: qs.get('ts'), state: qs.get('state') };
+    // === Конфиг ===
+    const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
+    const qs = new URLSearchParams(location.search);
+    const CTX = { uid: qs.get('uid'), ts: qs.get('ts'), state: qs.get('state') };
 
-  // Общие функции для всех способов
-  async function createOrder() {
-    const res = await fetch(`${API}/payments/paypal/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(CTX),
-    });
-    if (!res.ok) throw new Error('Create order failed');
-    const { id } = await res.json();
-    return id;
-  }
-
-  async function onApprove(data) {
-    const res = await fetch(`${API}/payments/paypal/capture?orderId=${data.orderID}`, { method: 'POST' });
-    if (!res.ok) throw new Error('Capture failed');
-    await res.json();
-    alert('Оплата прошла ✅ Проверь Telegram-бота — доступ придёт туда.');
-  }
-
-  function onError(err) {
-    console.error(err);
-    alert('Ошибка при оплате. Попробуйте ещё раз или напишите нам.');
-  }
-
-  // Инициализация после загрузки SDK
-  function initButtons() {
-    if (!window.paypal || typeof paypal.Buttons !== 'function') {
-      console.warn('PayPal SDK ещё не готов');
-      return;
+    async function createOrder() {
+      const res = await fetch(`${API}/payments/paypal/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(CTX),
+      });
+      if (!res.ok) throw new Error('Create order failed');
+      return (await res.json()).id;
     }
 
-    // «Умная» кнопка (PayPal + локальные методы типа P24)
-    paypal.Buttons({
-      style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
-      createOrder, onApprove, onError
-    }).render('#paypal');
+    async function onApprove(data) {
+      const res = await fetch(`${API}/payments/paypal/capture?orderId=${data.orderID}`, { method: 'POST' });
+      if (!res.ok) throw new Error('Capture failed');
+      await res.json();
+      alert('Оплата прошла ✅ Проверь Telegram-бота — доступ придёт туда.');
+    }
 
-    // Вспомогательная функция для отдельных источников
-    const tryRender = (fundingKey, elId, style = {}) => {
-      if (!paypal.FUNDING || !paypal.FUNDING[fundingKey]) return;
-      const btn = paypal.Buttons({
-        fundingSource: paypal.FUNDING[fundingKey],
-        style,                    // <— БЕЗ label!
-        createOrder, onApprove, onError
-      });
-      if (btn.isEligible()) {
-        document.getElementById(elId)?.classList.remove('hidden');
-        btn.render('#' + elId);
+    function onError(err) {
+      console.error(err);
+      alert('Ошибка при оплате. Попробуйте ещё раз или напишите нам.');
+    }
+
+    function initButtons() {
+      if (!window.paypal || typeof paypal.Buttons !== 'function') {
+        console.warn('PayPal SDK ещё не готов');
+        return;
       }
-    };
 
-    // Отдельные кнопки — только если реально доступны аккаунту/браузеру
-    tryRender('CARD',      'card',      { color: 'black', shape: 'rect' }); // без label!
-    tryRender('GOOGLEPAY', 'googlepay');                                   // без label!
-    tryRender('APPLEPAY',  'applepay');                                    // без label!
-  }
+      // «Умная» кнопка (сама покажет PayPal/P24/карту, если доступно)
+      paypal.Buttons({
+        style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
+        createOrder, onApprove, onError
+      }).render('#paypal');
 
-  if (document.readyState === 'complete') initButtons();
-  else window.addEventListener('load', initButtons);
-</script>
+      // Универсальный рендер отдельных источников без label (иначе "Invalid label: card")
+      const tryRender = (fundingKey, elId, style = {}) => {
+        if (!paypal.FUNDING || !paypal.FUNDING[fundingKey]) return;
+        const btn = paypal.Buttons({
+          fundingSource: paypal.FUNDING[fundingKey],
+          style,
+          createOrder, onApprove, onError
+        });
+        if (btn.isEligible()) {
+          document.getElementById(elId)?.classList.remove('hidden');
+          btn.render('#' + elId);
+        }
+      };
 
+      // Отдельные кнопки — только если реально доступны аккаунту/браузеру
+      tryRender('APPLEPAY',  'applepay',  { shape: 'rect' });           // Safari + Wallet + доменная верификация
+      tryRender('GOOGLEPAY', 'googlepay', { shape: 'rect' });           // Chrome/Android
+      tryRender('CARD',      'card',      { color: 'black', shape: 'rect' });
+    }
+
+    if (document.readyState === 'complete') initButtons();
+    else window.addEventListener('load', initButtons);
+  </script>
 </body>
 </html>
