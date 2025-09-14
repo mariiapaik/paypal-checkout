@@ -95,39 +95,32 @@
       return;
     }
 
-    // Основная «умная» кнопка (покажет PayPal + локальные методы вроде P24)
-    paypal.Buttons({ style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false }, createOrder, onApprove, onError })
-          .render('#paypal');
+    // «Умная» кнопка (PayPal + локальные методы типа P24)
+    paypal.Buttons({
+      style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
+      createOrder, onApprove, onError
+    }).render('#paypal');
 
-    // Отдельные источники — только если доступны в окружении/аккаунте
-    if (paypal.FUNDING && paypal.FUNDING.CARD) {
-      const card = paypal.Buttons({ fundingSource: paypal.FUNDING.CARD, style: { label: 'card', color: 'black' }, createOrder, onApprove, onError });
-      if (card.isEligible()) {
-        document.getElementById('card')?.classList.remove('hidden');
-        card.render('#card');
+    // Вспомогательная функция для отдельных источников
+    const tryRender = (fundingKey, elId, style = {}) => {
+      if (!paypal.FUNDING || !paypal.FUNDING[fundingKey]) return;
+      const btn = paypal.Buttons({
+        fundingSource: paypal.FUNDING[fundingKey],
+        style,                    // <— БЕЗ label!
+        createOrder, onApprove, onError
+      });
+      if (btn.isEligible()) {
+        document.getElementById(elId)?.classList.remove('hidden');
+        btn.render('#' + elId);
       }
-    }
+    };
 
-    if (paypal.FUNDING && paypal.FUNDING.GOOGLEPAY) {
-      const gpay = paypal.Buttons({ fundingSource: paypal.FUNDING.GOOGLEPAY, style: { label: 'googlepay' }, createOrder, onApprove, onError });
-      if (gpay.isEligible()) {
-        document.getElementById('googlepay')?.classList.remove('hidden');
-        gpay.render('#googlepay');
-      }
-    }
-
-    if (paypal.FUNDING && paypal.FUNDING.APPLEPAY) {
-      const apple = paypal.Buttons({ fundingSource: paypal.FUNDING.APPLEPAY, style: { label: 'applepay' }, createOrder, onApprove, onError });
-      if (apple.isEligible()) {
-        document.getElementById('applepay')?.classList.remove('hidden');
-        apple.render('#applepay');
-      } else {
-        console.log('Apple Pay не доступен (нужен Safari + Wallet и верификация домена).');
-      }
-    }
+    // Отдельные кнопки — только если реально доступны аккаунту/браузеру
+    tryRender('CARD',      'card',      { color: 'black', shape: 'rect' }); // без label!
+    tryRender('GOOGLEPAY', 'googlepay');                                   // без label!
+    tryRender('APPLEPAY',  'applepay');                                    // без label!
   }
 
-  // Надёжный запуск: после полной загрузки страницы
   if (document.readyState === 'complete') initButtons();
   else window.addEventListener('load', initButtons);
 </script>
