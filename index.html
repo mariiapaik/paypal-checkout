@@ -1,48 +1,43 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reels Guide</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Оплата курса</title>
 </head>
-<body style="text-align:center; padding-top:100px;">
+<body>
+  <h1>Оплата курса</h1>
+  <div id="paypal-btn"></div>
 
-  <h2>Buy Reels Guide</h2>
-  <p>You can pay using Apple Pay, Google Pay, a card, or PayPal.</p>
+  <!-- SDK: sandbox client-id и только buttons -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons&currency=EUR&intent=capture"></script>
 
-  <div id="paypal-button-container"></div>
-
-  <!-- <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&currency=EUR&components=card,applepay,googlepay"></script> -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AWeolsho_vX34nrzWw2fJqMIYF9gNFtuNRhs8C_5O0m6QmOevJcO_yvM3Fmb6i2oWOeaBKuDLxg1RpT8&components=buttons,applepay"></script>
   <script>
-    paypal.Buttons({
-      style: {
-        layout: 'vertical',
-        color: 'white',
-        shape: 'rect',
-        label: 'pay'
-      },
-      createOrder: function(data, actions) {
-        return actions.order.create({
-          purchase_units: [{
-            amount: {
-              value: '10.00' // Укажи сумму оплаты
-            }
-          }]
-        });
-      },
-      onApprove: function(data, actions) {
-        return actions.order.capture().then(function(details) {
-          alert('Payment completed by ' + details.payer.name.given_name);
-          // Можно вызвать Webhook или выполнить другие действия
-        });
-      },
-      onError: function(err) {
-        console.error('Payment error:', err);
-        alert('An error occurred during the payment process.');
-      }
-    }).render('#paypal-button-container');
-  </script>
+  // адрес твоего Cloud Run
+  const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
 
+  // читаем query (uid, ts, state) — можно пробросить на сервер, если нужно
+  const params = new URLSearchParams(location.search);
+
+  paypal.Buttons({
+    createOrder: () =>
+      fetch(`${API}/payments/paypal/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // если хочешь — отправляй uid/ts/state:
+        body: JSON.stringify({ uid: params.get('uid'), ts: params.get('ts'), state: params.get('state') })
+      })
+      .then(r => r.json())
+      .then(d => d.id),
+
+    onApprove: (data) =>
+      fetch(`${API}/payments/paypal/capture?orderId=${data.orderID}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(() => {
+          alert('Оплата прошла ✅');
+          // тут можно показать инструкцию или автоперейти обратно в Telegram
+        })
+  }).render('#paypal-btn');
+  </script>
 </body>
 </html>
