@@ -4,40 +4,130 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Оплата курса</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card: #15171c;
+      --text: #e9edf1;
+      --muted: #98a2b3;
+      --accent: #4f46e5;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 600px at 80% -10%, #1b1e27 0, #0b0c10 55%);
+      color: var(--text);
+      font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "SF Pro Text", Inter, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(680px, 92vw);
+      background: linear-gradient(180deg, #171a20, #12141a);
+      border: 1px solid #242735;
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.02);
+      padding: clamp(20px, 3.5vw, 36px);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(22px, 3.2vw, 28px);
+      letter-spacing: .2px;
+    }
+    .sub {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .price {
+      display: inline-block;
+      margin: 10px 0 22px;
+      padding: 8px 12px;
+      border: 1px dashed #2b3042;
+      border-radius: 999px;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+    .group {
+      margin-top: 8px;
+      display: grid;
+      gap: 12px;
+    }
+    .note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .divider {
+      height: 1px; background: #222532; margin: 18px 0;
+    }
+    .hidden { display: none; }
+    .footer {
+      margin-top: 14px; display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 12px;
+    }
+    .badge { color: #c7d2fe; background:#1d2140; border:1px solid #2a2f6c; padding:4px 8px; border-radius:999px; }
+  </style>
+
+  <!-- PayPal SDK:
+       пока без параметров, которые дропают 400.
+       Когда Apple Pay включат и домен верифицируется — добавь &enable-funding=applepay,googlepay,card -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons&currency=EUR&intent=capture"></script>
 </head>
 <body>
-  <h1>Оплата курса</h1>
-  <div id="paypal-btn"></div>
+  <main class="card">
+    <h1>Оплата курса</h1>
+    <p class="sub">После успешной оплаты доступ к урокам придёт в Telegram-бот.</p>
+    <div class="price">€10.00 • единоразово</div>
 
-  <!-- SDK: sandbox client-id и только buttons -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons&currency=EUR&intent=capture"></script>
+    <div id="buttons" class="group"></div>
+
+    <div class="divider"></div>
+    <p class="note">
+      Поддерживаются PayPal и банковские карты. Apple Pay появится в Safari на устройствах, где он настроен.
+    </p>
+
+    <div class="footer">
+      <span class="badge">Безопасный платёж</span>
+      <span>Обработка через PayPal</span>
+    </div>
+  </main>
 
   <script>
-  // адрес твоего Cloud Run
-  const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
+    // Ваш backend на Cloud Run:
+    const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app'; // ← замените при необходимости
+    const params = new URLSearchParams(location.search);
 
-  // читаем query (uid, ts, state) — можно пробросить на сервер, если нужно
-  const params = new URLSearchParams(location.search);
-
-  paypal.Buttons({
-    createOrder: () =>
-      fetch(`${API}/payments/paypal/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // если хочешь — отправляй uid/ts/state:
-        body: JSON.stringify({ uid: params.get('uid'), ts: params.get('ts'), state: params.get('state') })
-      })
-      .then(r => r.json())
-      .then(d => d.id),
-
-    onApprove: (data) =>
-      fetch(`${API}/payments/paypal/capture?orderId=${data.orderID}`, { method: 'POST' })
-        .then(r => r.json())
-        .then(() => {
-          alert('Оплата прошла ✅');
-          // тут можно показать инструкцию или автоперейти обратно в Telegram
+    // Рендер "умных" кнопок (PayPal + локальные методы + карты)
+    paypal.Buttons({
+      style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
+      createOrder: () => {
+        return fetch(`${API}/payments/paypal/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: params.get('uid'),
+            ts: params.get('ts'),
+            state: params.get('state')
+          })
+        }).then(r => r.json()).then(d => d.id);
+      },
+      onApprove: (data) => {
+        return fetch(`${API}/payments/paypal/capture?orderId=${data.orderID}`, {
+          method: 'POST'
         })
-  }).render('#paypal-btn');
+          .then(r => r.json())
+          .then(() => {
+            alert('Оплата прошла ✅ Проверьте сообщения в боте.');
+          });
+      }
+    }).render('#buttons');
+
+    // Когда включат Apple Pay и домен пройдёт верификацию в PayPal:
+    // 1) поменяйте тег SDK наверху: добавьте &enable-funding=applepay,googlepay,card
+    // 2) тестируйте СТРОГО в Safari с настроенным Apple Pay.
   </script>
 </body>
 </html>
