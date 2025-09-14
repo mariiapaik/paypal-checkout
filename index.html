@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Оплата курса</title>
   <style>
-    :root { --bg:#0b0c10; --card:#15171c; --text:#e9edf1; --muted:#98a2b3; --accent:#4f46e5; --radius:16px; }
+    :root { --bg:#0b0c10; --card:#15171c; --text:#e9edf1; --muted:#98a2b3; --radius:16px; }
     *{box-sizing:border-box} html,body{height:100%}
     body{
       margin:0; background:radial-gradient(1200px 600px at 80% -10%, #1b1e27 0, #0b0c10 55%);
-      color:var(--text); font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"SF Pro Text",Inter,Segoe UI,Roboto,Helvetica,Arial;
+      color:var(--text); font:16px/1.5 ui-sans-serif,system-ui,-apple-system,Inter,Segoe UI,Roboto,Helvetica,Arial;
       display:grid; place-items:center; padding:24px;
     }
     .card{
@@ -18,19 +18,17 @@
       box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.02);
       padding:clamp(20px,3.5vw,36px);
     }
-    h1{margin:0 0 6px; font-size:clamp(22px,3.2vw,28px); letter-spacing:.2px}
+    h1{margin:0 0 6px; font-size:clamp(22px,3.2vw,28px)}
     .sub{margin:0 0 18px; color:var(--muted); font-size:14px}
     .price{display:inline-block; margin:10px 0 22px; padding:8px 12px; border:1px dashed #2b3042; border-radius:999px; color:#cbd5e1; font-weight:600}
-    .group{margin-top:8px; display:grid; gap:12px}
     .divider{height:1px; background:#222532; margin:18px 0}
     .note{margin-top:18px; color:var(--muted); font-size:12px}
     .footer{margin-top:14px; display:flex; gap:10px; align-items:center; color:var(--muted); font-size:12px}
     .badge{color:#c7d2fe; background:#1d2140; border:1px solid #2a2f6c; padding:4px 8px; border-radius:999px}
-    .hidden{display:none}
   </style>
 
-  <!-- PayPal SDK — одной строкой, без enable-funding -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons,funding-eligibility&currency=EUR&intent=capture"></script>
+  <!-- PayPal SDK: только умные кнопки (без applepay/googlepay, чтобы не ловить 400) -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons&currency=EUR&intent=capture"></script>
 </head>
 <body>
   <main class="card">
@@ -38,16 +36,12 @@
     <p class="sub">После успешной оплаты доступ к урокам придёт в Telegram-бот.</p>
     <div class="price">€10.00 • единоразово</div>
 
-    <div class="group">
-      <div id="paypal"></div>
-      <div id="applepay" class="hidden"></div>
-      <div id="googlepay" class="hidden"></div>
-      <div id="card" class="hidden"></div>
-    </div>
+    <!-- одна «умная» кнопка; внутри появятся PayPal / P24 / Карта -->
+    <div id="paypal"></div>
 
     <div class="divider"></div>
     <p class="note">
-      Поддерживаются PayPal и банковские карты. Apple Pay появляется только в Safari на устройствах, где он настроен.
+      Поддерживаются PayPal и банковские карты. Apple Pay появится в Safari на устройствах, где он настроен (добавим позже).
     </p>
 
     <div class="footer">
@@ -56,66 +50,52 @@
   </main>
 
   <script>
+    // Бэкенд и правильные пути из Swagger
     const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
-    const qs = new URLSearchParams(location.search);
+    const CREATE_URL  = `${API}/paypal/create-order`;
+    const CAPTURE_URL = `${API}/paypal/capture`;
+
+    const qs  = new URLSearchParams(location.search);
     const CTX = { uid: qs.get('uid'), ts: qs.get('ts'), state: qs.get('state') };
-  
+
     async function createOrder() {
-      const r = await fetch(`${API}/payments/paypal/create`, {
+      const r = await fetch(CREATE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(CTX),
       });
-      if (!r.ok) throw new Error('Create order failed');
-      return (await r.json()).id;
+      if (!r.ok) throw new Error('Create order failed: ' + r.status);
+      const { id } = await r.json();
+      return id;
     }
-  
+
     async function onApprove(data) {
-      const r = await fetch(`${API}/payments/paypal/capture?orderId=${data.orderID}`, { method: 'POST' });
-      if (!r.ok) throw new Error('Capture failed');
+      const r = await fetch(`${CAPTURE_URL}?orderId=${data.orderID}`, { method: 'POST' });
+      if (!r.ok) throw new Error('Capture failed: ' + r.status);
       await r.json();
       alert('Оплата прошла ✅ Проверь Telegram-бота — доступ придёт туда.');
     }
-  
+
     function onError(err) {
       console.error(err);
       alert('Ошибка при оплате. Попробуйте ещё раз или напишите нам.');
     }
-  
-    function initButtons() {
+
+    function init() {
       if (!window.paypal || typeof paypal.Buttons !== 'function') {
         console.warn('PayPal SDK ещё не готов');
         return;
       }
-  
-      // Умная кнопка: PayPal + локальные методы (например, P24) + карта внутри
       paypal.Buttons({
         style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
-        createOrder, onApprove, onError
+        createOrder,
+        onApprove,
+        onError
       }).render('#paypal');
-  
-      // Опционально показываем Apple/Google Pay отдельно, если СДК говорит, что можно
-      const tryRender = (fundingKey, elId, style = {}) => {
-        if (!paypal.FUNDING || !paypal.FUNDING[fundingKey]) return;
-        const btn = paypal.Buttons({ fundingSource: paypal.FUNDING[fundingKey], style, createOrder, onApprove, onError });
-        if (btn.isEligible()) {
-          document.getElementById(elId)?.classList.remove('hidden');
-          btn.render('#' + elId);
-        }
-      };
-  
-      tryRender('APPLEPAY',  'applepay',  { shape: 'rect' });
-      tryRender('GOOGLEPAY', 'googlepay', { shape: 'rect' });
-  
-      // отладка: посмотрим, что думает SDK
-      if (paypal.getFundingEligibility) {
-        paypal.getFundingEligibility().then(e => console.log('fundingEligibility:', e));
-      }
     }
-  
-    if (document.readyState === 'complete') initButtons();
-    else window.addEventListener('load', initButtons);
-  </script>
 
+    if (document.readyState === 'complete') init();
+    else window.addEventListener('load', init);
+  </script>
 </body>
 </html>
