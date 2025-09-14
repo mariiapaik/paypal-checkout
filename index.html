@@ -129,28 +129,5 @@
       card.render('#card');
     }
   </script>
-
-  <div id="applepay"></div>
-  <script>
-    // Рендерим отдельную кнопку Apple Pay
-    const appleBtn = paypal.Buttons({
-      fundingSource: paypal.FUNDING.APPLEPAY,
-      style: { label: 'applepay', shape: 'rect', layout: 'horizontal' },
-      // твои функции:
-      createOrder,   // должна вернуть orderID (через твой бэкенд)
-      onApprove,     // капчур + редирект/сообщение
-      onError        // лог ошибок
-    });
-  
-    // Доп. проверка, доступен ли Apple Pay в окружении
-    const canUseApplePay = !!window.ApplePaySession; // Safari + Wallet
-    if (canUseApplePay && appleBtn.isEligible()) {
-      appleBtn.render('#applepay');
-    } else {
-      console.log('Apple Pay не доступен в этом браузере/устройстве');
-    }
-  </script>
-
-
 </body>
 </html>
