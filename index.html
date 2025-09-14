@@ -50,52 +50,55 @@
   </main>
 
   <script>
-    // Бэкенд и правильные пути из Swagger
     const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
-    const CREATE_URL  = `${API}/paypal/create-order`;
-    const CAPTURE_URL = `${API}/paypal/capture`;
-
-    const qs  = new URLSearchParams(location.search);
-    const CTX = { uid: qs.get('uid'), ts: qs.get('ts'), state: qs.get('state') };
-
+    const qs = new URLSearchParams(location.search);
+    const CTX = { uid: Number(qs.get('uid')), ts: Number(qs.get('ts')), state: qs.get('state') };
+  
     async function createOrder() {
-      const r = await fetch(CREATE_URL, {
+      const res = await fetch(`${API}/paypal/create-order`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(CTX),
       });
-      if (!r.ok) throw new Error('Create order failed: ' + r.status);
-      const { id } = await r.json();
-      return id;
+      const text = await res.text();
+      if (!res.ok) {
+        console.error('create-order ERROR:', res.status, text);
+        throw new Error(`Create order failed: ${res.status}`);
+      }
+      const data = JSON.parse(text);         // { orderID: "..." }
+      return data.orderID;                    // ВАЖНО: возвращаем строку orderID
     }
-
-    async function onApprove(data) {
-      const r = await fetch(`${CAPTURE_URL}?orderId=${data.orderID}`, { method: 'POST' });
-      if (!r.ok) throw new Error('Capture failed: ' + r.status);
-      await r.json();
-      alert('Оплата прошла ✅ Проверь Telegram-бота — доступ придёт туда.');
+  
+    async function onApprove({ orderID }) {
+      const res = await fetch(`${API}/paypal/capture`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ ...CTX, orderID }),   // ВАЖНО: бэку нужны uid/ts/state + orderID
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        console.error('capture ERROR:', res.status, text);
+        throw new Error('Capture failed');
+      }
+      alert('Оплата прошла ✅ Проверь сообщения в боте.');
     }
-
+  
     function onError(err) {
       console.error(err);
       alert('Ошибка при оплате. Попробуйте ещё раз или напишите нам.');
     }
-
+  
     function init() {
       if (!window.paypal || typeof paypal.Buttons !== 'function') {
-        console.warn('PayPal SDK ещё не готов');
-        return;
+        console.warn('PayPal SDK ещё не готов'); return;
       }
       paypal.Buttons({
         style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
-        createOrder,
-        onApprove,
-        onError
+        createOrder, onApprove, onError
       }).render('#paypal');
     }
-
-    if (document.readyState === 'complete') init();
-    else window.addEventListener('load', init);
+    window.addEventListener('load', init);
   </script>
+
 </body>
 </html>
