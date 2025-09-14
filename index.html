@@ -129,5 +129,26 @@
     // 1) поменяйте тег SDK наверху: добавьте &enable-funding=applepay,googlepay,card
     // 2) тестируйте СТРОГО в Safari с настроенным Apple Pay.
   </script>
+
+  <div id="applepay"></div>
+<script>
+  // Лог пригодности источников (посмотри в консоли, если не рисуется)
+  console.log('eligibility:', paypal.getFundingEligibility());
+
+  const appleBtn = paypal.Buttons({
+    fundingSource: paypal.FUNDING.APPLEPAY,
+    style: { label: 'applepay', shape: 'rect', layout: 'horizontal' },
+    createOrder,  // твоя функция
+    onApprove,    // твоя функция
+    onError       // твоя функция
+  });
+
+  if (appleBtn.isEligible()) {
+    appleBtn.render('#applepay');
+  } else {
+    console.log('Apple Pay не доступен в этом окружении');
+  }
+</script>
+
 </body>
 </html>
