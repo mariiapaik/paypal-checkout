@@ -51,8 +51,21 @@
 
   <script>
     const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
+    const BOT = 'SDDSbecomingherCOURSE_bot'
     const qs = new URLSearchParams(location.search);
     const CTX = { uid: Number(qs.get('uid')), ts: Number(qs.get('ts')), state: qs.get('state') };
+    const uid   = Number(new URLSearchParams(location.search).get("uid"));
+    const ts    = Number(new URLSearchParams(location.search).get("ts"));
+    const state = new URLSearchParams(location.search).get("state");
+
+    function redirectToBot(start) {
+      const startParam = `paid_${start}`;
+      const web = `https://t.me/${BOT}?start=${encodeURIComponent(startParam)}`;
+      const deep = `tg://resolve?domain=${BOT}&start=${encodeURIComponent(startParam)}`;
+  
+      location.replace(web);
+      setTimeout(() => { location.href = deep; }, 400);
+    }
   
     async function createOrder() {
       const res = await fetch(`${API}/paypal/create-order`, {
@@ -81,6 +94,7 @@
         throw new Error('Capture failed');
       }
       alert('Оплата прошла ✅ Проверь сообщения в боте.');
+      redirectToBot(uid);
     }
   
     function onError(err) {
