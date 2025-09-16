@@ -25,10 +25,14 @@
     .note{margin-top:18px; color:var(--muted); font-size:12px}
     .footer{margin-top:14px; display:flex; gap:10px; align-items:center; color:var(--muted); font-size:12px}
     .badge{color:#c7d2fe; background:#1d2140; border:1px solid #2a2f6c; padding:4px 8px; border-radius:999px}
+    .warn{background:#2a1320;border:1px solid #53233f;color:#ffd0d8;padding:12px 14px;border-radius:12px;margin:12px 0}
+    .ok{background:#112618;border:1px solid #1f5c34;color:#c9ffd9;padding:12px 14px;border-radius:12px;margin:12px 0}
+    .hidden{display:none}
+    a.btn{display:inline-block;padding:10px 14px;border:1px solid #2b3042;border-radius:10px;color:#e9edf1;text-decoration:none}
   </style>
 
-  <!-- PayPal SDK: только умные кнопки (без applepay/googlepay, чтобы не ловить 400) -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AUQBuv0K4YLfNtqKGZBbOIAux9z5VaqNO7fQ9ukPlV_fiJTpcM7Rf1IKKEMTz3N--9i-BWytMUS3tNIC&components=buttons&currency=EUR&intent=capture"></script>
+  <!-- PayPal SDK: только умные кнопки -->
+  <script src="https://www.paypal.com/sdk/js?client-id=YOUR_CLIENT_ID&components=buttons&currency=EUR&intent=capture"></script>
 </head>
 <body>
   <main class="card">
@@ -36,12 +40,23 @@
     <p class="sub">После успешной оплаты доступ к урокам придёт в Telegram-бот.</p>
     <div class="price">€10.00 • единоразово</div>
 
-    <!-- одна «умная» кнопка; внутри появятся PayPal / P24 / Карта -->
+    <!-- предупреждения -->
+    <div id="params-missing" class="warn hidden">
+      Ваша ссылка не содержит параметров. Откройте страницу оплаты заново из бота — нажмите «Оплатить».
+    </div>
+    <div id="expired" class="warn hidden">
+      Ссылка на оплату истекла. <a id="expired-link" class="btn" href="#">Получить новую ссылку</a>
+    </div>
+    <div id="ok-msg" class="ok hidden">
+      Оплата прошла ✅ Проверьте сообщения в Telegram-боте — там отправлен первый урок.
+    </div>
+
+    <!-- кнопка PayPal -->
     <div id="paypal"></div>
 
     <div class="divider"></div>
     <p class="note">
-      Поддерживаются PayPal и банковские карты. Apple Pay появится в Safari на устройствах, где он настроен (добавим позже).
+      Поддерживаются PayPal и банковские карты. Если оплата не началась или ссылка истекла — вернитесь в бот и нажмите «Оплатить» ещё раз.
     </p>
 
     <div class="footer">
@@ -50,69 +65,116 @@
   </main>
 
   <script>
-    const API = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
-    const BOT = 'SDDSbecomingherCOURSE_bot'
+    // === НАСТРОЙКИ СТРАНИЦЫ ===
+    const API_BASE = 'https://telegram-course-bot-lasico4qya-lm.a.run.app'; // твой бекенд
+    const BOT = 'SDDSbecomingherCOURSE_bot'; // юзернейм бота без @
+
+    // === УТИЛИТЫ ===
+    const $ = (id) => document.getElementById(id);
     const qs = new URLSearchParams(location.search);
-    const CTX = { uid: Number(qs.get('uid')), ts: Number(qs.get('ts')), state: qs.get('state') };
-    const uid   = Number(new URLSearchParams(location.search).get("uid"));
-    const ts    = Number(new URLSearchParams(location.search).get("ts"));
-    const state = new URLSearchParams(location.search).get("state");
+    const CTX = {
+      uid: Number(qs.get('uid') || '0'),
+      ts: Number(qs.get('ts') || '0'),
+      state: qs.get('state') || ''
+    };
+
+    function show(el, flag=true){ el.classList[flag ? 'remove' : 'add']('hidden'); }
+    function hide(el){ show(el, false); }
 
     function redirectToBot(start) {
       const startParam = `paid_${start}`;
       const web = `https://t.me/${BOT}?start=${encodeURIComponent(startParam)}`;
       const deep = `tg://resolve?domain=${BOT}&start=${encodeURIComponent(startParam)}`;
-  
       location.replace(web);
       setTimeout(() => { location.href = deep; }, 400);
     }
-  
-    async function createOrder() {
-      const res = await fetch(`${API}/paypal/create-order`, {
+
+    function showExpired(newUrl) {
+      $('paypal').style.display = 'none';
+      $('expired-link').href = newUrl;
+      show($('expired'));
+    }
+
+    // === ВЗАИМОДЕЙСТВИЕ С БЭКОМ ===
+    async function createOrderOnBackend() {
+      const res = await fetch(`${API_BASE}/paypal/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(CTX),
       });
-      const text = await res.text();
-      if (!res.ok) {
-        console.error('create-order ERROR:', res.status, text);
-        throw new Error(`Create order failed: ${res.status}`);
+
+      if (res.status === 410) {
+        const payload = await res.json().catch(() => ({}));
+        const detail = payload.detail || payload || {};
+        if (detail.new_url) showExpired(detail.new_url);
+        throw new Error('payment_link_expired');
       }
-      const data = JSON.parse(text);         // { orderID: "..." }
-      return data.orderID;                    // ВАЖНО: возвращаем строку orderID
+      if (!res.ok) {
+        const t = await res.text().catch(()=>'');
+        console.error('create-order ERROR:', res.status, t);
+        throw new Error(`create_order_failed_${res.status}`);
+      }
+      const data = await res.json();     // { id: "..." }
+      return data.id;                    // ВАЖНО: возвращаем строку id
     }
-  
-    async function onApprove({ orderID }) {
-      const res = await fetch(`${API}/paypal/capture`, {
+
+    async function captureOnBackend(orderID) {
+      const res = await fetch(`${API_BASE}/paypal/capture`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ ...CTX, orderID }),   // ВАЖНО: бэку нужны uid/ts/state + orderID
+        body: JSON.stringify({ ...CTX, order_id: orderID }), // ВАЖНО: поле order_id (как на бэке)
       });
-      const text = await res.text();
+
+      if (res.status === 410) {
+        const payload = await res.json().catch(() => ({}));
+        const detail = payload.detail || payload || {};
+        if (detail.new_url) showExpired(detail.new_url);
+        throw new Error('payment_link_expired');
+      }
       if (!res.ok) {
-        console.error('capture ERROR:', res.status, text);
-        throw new Error('Capture failed');
+        const t = await res.text().catch(()=>'');
+        console.error('capture ERROR:', res.status, t);
+        throw new Error(`capture_failed_${res.status}`);
       }
-      alert('Оплата прошла ✅ Проверь сообщения в боте.');
-      redirectToBot(uid);
+      return res.json();
     }
-  
-    function onError(err) {
-      console.error(err);
-      alert('Ошибка при оплате. Попробуйте ещё раз или напишите нам.');
-    }
-  
+
+    // === ИНИЦИАЛИЗАЦИЯ ===
     function init() {
-      if (!window.paypal || typeof paypal.Buttons !== 'function') {
-        console.warn('PayPal SDK ещё не готов'); return;
+      // проверим, что параметры есть
+      if (!CTX.uid || !CTX.ts || !CTX.state) {
+        show($('params-missing'));
+        $('paypal').style.display = 'none';
+        return;
       }
+
+      if (!window.paypal || typeof paypal.Buttons !== 'function') {
+        console.warn('PayPal SDK ещё не готов');
+        return;
+      }
+
       paypal.Buttons({
         style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
-        createOrder, onApprove, onError
+
+        createOrder: async () => {
+          return await createOrderOnBackend();
+        },
+
+        onApprove: async (data) => {
+          await captureOnBackend(data.orderID);
+          show($('ok-msg'));
+          // можно сразу редиректнуть в бот:
+          redirectToBot(CTX.uid);
+        },
+
+        onError: (err) => {
+          console.error('PayPal onError:', err);
+          alert('Ошибка при оплате. Попробуйте ещё раз или напишите нам.');
+        }
       }).render('#paypal');
     }
+
     window.addEventListener('load', init);
   </script>
-
 </body>
 </html>
