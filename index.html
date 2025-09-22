@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Оплата курса</title>
+  <title>Platba za kurz</title>
   <style>
     :root { --bg:#0b0c10; --card:#15171c; --text:#e9edf1; --muted:#98a2b3; --radius:16px; }
     *{box-sizing:border-box} html,body{height:100%}
@@ -35,29 +35,29 @@
 </head>
 <body>
   <main class="card">
-    <h1>Оплата курса</h1>
-    <p class="sub">После успешной оплаты доступ к урокам придёт в Telegram-бот.</p>
-    <div class="price">€10.00 • единоразово</div>
+    <h1>Platba za kurz</h1>
+    <p class="sub">Po úspešnej platbe dostanete prístup k lekciám v Telegram-bote.</p>
+    <div class="price">€10.00 • jednorazovo</div>
 
     <div id="params-missing" class="warn hidden">
-      Ваша ссылка не содержит параметров. Откройте страницу оплаты заново из бота — нажмите «Оплатить».
+      Váš odkaz neobsahuje žiadne parametre. Otvorte stránku platby znovu z bota – kliknite na „Zaplatiť“.
     </div>
     <div id="expired" class="warn hidden">
-      Ссылка на оплату истекла. <a id="expired-link" class="btn" href="#">Получить новую ссылку</a>
+      Odkaz na platbu vypršal. <a id="expired-link" class="btn" href="#">Získať nový odkaz</a>
     </div>
     <div id="ok-msg" class="ok hidden">
-      Оплата прошла ✅ Проверьте сообщения в Telegram-боте — там отправлен первый урок.
+      Platba prebehla úspešne ✅ Skontrolujte správy v Telegram-bote — tam je odoslaná prvá lekcia.
     </div>
 
     <div id="paypal"></div>
 
     <div class="divider"></div>
     <p class="note">
-      Поддерживаются PayPal и банковские карты. Если оплата не началась или ссылка истекла — вернитесь в бот и нажмите «Оплатить» ещё раз.
+      Podporované sú platby prostredníctvom PayPal a bankových kariet. Ak sa platba nezačala alebo platnosť odkazu vypršala, vráťte sa do bota a kliknite na „Zaplatiť“ ešte raz.
     </p>
 
     <div class="footer">
-      <span class="badge">Безопасный платёж</span><span>Обработка через PayPal</span>
+      <span class="badge">Bezpečná platba</span><span>Spracovanie prostredníctvom PayPal</span>
     </div>
   </main>
 
@@ -141,7 +141,7 @@
       }
 
       if (!window.paypal || typeof paypal.Buttons !== 'function') {
-        console.warn('PayPal SDK ещё не готов');
+        console.warn('PayPal SDK ešte nie je pripravený');
         return;
       }
 
@@ -160,7 +160,7 @@
 
         onError: (err) => {
           console.error('PayPal onError:', err);
-          alert('Ошибка при оплате. Попробуйте ещё раз или напишите нам.');
+          alert('Chyba pri platbe. Skúste to znovu alebo kontaktujte podporu.');
         }
       }).render('#paypal');
     }
