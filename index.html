@@ -29,6 +29,15 @@
     .ok{background:#112618;border:1px solid #1f5c34;color:#c9ffd9;padding:12px 14px;border-radius:12px;margin:12px 0}
     .hidden{display:none}
     a.btn{display:inline-block;padding:10px 14px;border:1px solid #2b3042;border-radius:10px;color:#e9edf1;text-decoration:none}
+
+    .paybtn { width:100%; height:52px; margin:12px 0; }
+
+    #applepay-container apple-pay-button.ap-btn{
+      display:block;
+      width:100%;
+      height:52px;       
+      border-radius:10px; 
+    }
   </style>
 
   <!-- Apple Pay JS -->
@@ -178,7 +187,11 @@
 
         // Рендерим нативную кнопку Apple Pay
         const apContainer = $('applepay-container');
-        apContainer.innerHTML = '<apple-pay-button id="ap-btn" buttonstyle="black" type="buy" locale="sk-SK"></apple-pay-button>';
+        apContainer.innerHTML = `<apple-pay-button id="ap-btn"
+                    class="ap-btn paybtn"
+                    buttonstyle="black"
+                    type="buy"
+                    locale="sk-SK"></apple-pay-button>`;
 
         $('ap-btn').addEventListener('click', async () => {
           try {
