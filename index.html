@@ -40,7 +40,7 @@
   <!-- Apple Pay JS -->
   <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
   <!-- PayPal SDK: buttons + applepay -->
-  <script id="paypal-sdk" src="https://www.paypal.com/sdk/js?client-id=AU819ybHigRuHXuhwMIuMBk7ESAkJurInwOz3mDuW7-VpIGxkgHFpDd4bOLERLbvsOEVASNOyCGSqL8l&components=buttons,applepay&currency=EUR&intent=capture" async></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=AU819ybHigRuHXuhwMIuMBk7ESAkJurInwOz3mDuW7-VpIGxkgHFpDd4bOLERLbvsOEVASNOyCGSqL8l&components=buttons,applepay&currency=EUR&intent=capture&onload=paypalSdkReady"></script>
 </head>
 <body>
   <main class="card">
@@ -71,6 +71,10 @@
       <span class="badge">Bezpečná platba</span><span>Spracovanie prostredníctvom PayPal</span>
     </div>
   </main>
+
+  <div id="pay-warn" class="warn hidden">
+    Platobný modul sa nenačítal. Skúste vypnúť blokovanie reklamy alebo obnoviť stránku.
+  </div>
 
   <script>
     // ------- конфиг -------
@@ -196,6 +200,31 @@
         }, 100);
       }
     });
+
+    function paypalSdkReady() {
+      try {
+        if (!CTX.uid || !CTX.ts || !CTX.state) {
+          show($('params-missing'));
+          ['applepay-container','paypal'].forEach(id=>{ const n=$(id); if(n) n.style.display='none'; });
+          return;
+        }
+        if (!window.paypal) {
+          show($('pay-warn'));
+          return;
+        }
+        initPayPalButtons();
+        initApplePay();
+      } catch (e) {
+        console.error('paypalSdkReady failed', e);
+        show($('pay-warn'));
+      }
+    }
+
+    setTimeout(() => {
+      if (!window.paypal && !document.hidden) {
+        show($('pay-warn'));
+      }
+    }, 3000);
   </script>
 </body>
 </html>
