@@ -29,8 +29,10 @@
     .ok{background:#112618;border:1px solid #1f5c34;color:#c9ffd9;padding:12px 14px;border-radius:12px;margin:12px 0}
     .hidden{display:none}
     a.btn{display:inline-block;padding:10px 14px;border:1px solid #2b3042;border-radius:10px;color:#e9edf1;text-decoration:none}
-    .paybtn { width:100%; height:56px; margin:12px 0; }
-    #applepay-container apple-pay-button.ap-btn{ display:block; width:100%; height:56px; border-radius:12px; }
+    .paybtn { width:100%; height:55px; margin:12px 0; }
+    #applepay-container apple-pay-button.ap-btn{
+      display:block; width:100%; height:55px; border-radius:12px;
+    }
   </style>
 
   <!-- Apple Pay JS -->
@@ -103,10 +105,10 @@
     function initPayPalButtons(){
       if(!window.paypal || typeof paypal.Buttons!=='function'){ console.warn('paypal.Buttons not ready'); show($('pay-warn')); return; }
       paypal.Buttons({
-        style: { layout:'vertical', shape:'rect', color:'gold', tagline:false, height:56 },
+        style: { layout:'vertical', shape:'rect', color:'gold', tagline:false, height:55 },
         createOrder: async () => await createOrderOnBackend(),
         onApprove: async (data) => { await captureOnBackend(data.orderID); show($('ok-msg')); openBotChat(); },
-        onError:   (err)  => { console.error('PayPal onError:', err); alert('Chyba pri platbe. Skúste to znovu.'); }
+        onError: (err) => { console.error('PayPal onError:', err); alert('Chyba pri platbe. Skúste to znovu.'); }
       }).render('#paypal');
     }
 
