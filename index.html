@@ -30,20 +30,17 @@
     .hidden{display:none}
     a.btn{display:inline-block;padding:10px 14px;border:1px solid #2b3042;border-radius:10px;color:#e9edf1;text-decoration:none}
 
-    .paybtn { width:100%; height:52px; margin:12px 0; }
-
+    /* одинаковая высота кнопок */
+    .paybtn{ width:100%; height:56px; margin:12px 0; }
     #applepay-container apple-pay-button.ap-btn{
-      display:block;
-      width:100%;
-      height:auto;       
-      border-radius:10px; 
+      display:block; width:100%; height:56px; border-radius:12px;
     }
   </style>
 
   <!-- Apple Pay JS -->
   <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
-  <!-- PayPal JS (включаем компоненты buttons+applepay) -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AU819ybHigRuHXuhwMIuMBk7ESAkJurInwOz3mDuW7-VpIGxkgHFpDd4bOLERLbvsOEVASNOyCGSqL8l&components=applepay&currency=EUR&intent=capture"></script>
+  <!-- PayPal SDK: buttons + applepay -->
+  <script id="paypal-sdk" src="https://www.paypal.com/sdk/js?client-id=AU819ybHigRuHXuhwMIuMBk7ESAkJurInwOz3mDuW7-VpIGxkgHFpDd4bOLERLbvsOEVASNOyCGSqL8l&components=buttons,applepay&currency=EUR&intent=capture" async></script>
 </head>
 <body>
   <main class="card">
@@ -76,196 +73,130 @@
   </main>
 
   <script>
+    // ------- конфиг -------
     const API_BASE = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
     const BOT = 'SDDSbecomingherCOURSE_bot';
+    const PRICE_EUR = '10.00'; // должно совпадать с бэком
 
-    // ДОЛЖНО СОВПАДАТЬ с ценой на бэке
-    const PRICE_EUR = "10.00";
-
+    // ------- утилиты -------
     const $ = (id) => document.getElementById(id);
     const qs = new URLSearchParams(location.search);
-    const CTX = {
-      uid: Number(qs.get('uid') || '0'),
-      ts: Number(qs.get('ts') || '0'),
-      state: qs.get('state') || ''
-    };
+    const CTX = { uid:Number(qs.get('uid')||'0'), ts:Number(qs.get('ts')||'0'), state:qs.get('state')||'' };
 
     function show(el, flag=true){ el.classList[flag ? 'remove' : 'add']('hidden'); }
-    function hide(el){ show(el, false); }
+    function openBotChat(){ const web=`https://t.me/${BOT}`, deep=`tg://resolve?domain=${BOT}`; location.href=deep; setTimeout(()=>{location.href=web;},300); }
 
-    function openBotChat() {
-      const web = `https://t.me/${BOT}`;
-      const deep = `tg://resolve?domain=${BOT}`;
-      location.href = deep;
-      setTimeout(() => { location.href = web; }, 300);
+    function showExpired(newUrl){
+      ['applepay-container','paypal'].forEach(id => { const n=$(id); if(n) n.style.display='none'; });
+      $('expired-link').href = newUrl; show($('expired'));
     }
 
-    function showExpired(newUrl) {
-      const apple = $('applepay-container');
-      const pp = $('paypal');
-      if (apple) apple.style.display = 'none';
-      if (pp) pp.style.display = 'none';
-      $('expired-link').href = newUrl;
-      show($('expired'));
-    }
-
-    async function createOrderOnBackend() {
+    async function createOrderOnBackend(){
       const res = await fetch(`${API_BASE}/paypal/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(CTX),
+        method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body:JSON.stringify(CTX)
       });
-
-      if (res.status === 410) {
-        const payload = await res.json().catch(() => ({}));
-        const detail = payload.detail || payload || {};
-        if (detail.new_url) showExpired(detail.new_url);
-        throw new Error('payment_link_expired');
-      }
-      if (!res.ok) {
-        const t = await res.text().catch(()=> '');
-        console.error('create-order ERROR:', res.status, t);
-        throw new Error(`create_order_failed_${res.status}`);
-      }
-      const data = await res.json();
-      return data.id; // { id }
+      if(res.status===410){ const p=await res.json().catch(()=>({})); const d=p.detail||p||{}; if(d.new_url) showExpired(d.new_url); throw new Error('payment_link_expired'); }
+      if(!res.ok){ console.error('create-order ERROR:', res.status, await res.text().catch(()=>'')); throw new Error(`create_order_failed_${res.status}`); }
+      const data = await res.json(); return data.id;
     }
 
-    async function captureOnBackend(orderID) {
+    async function captureOnBackend(orderID){
       const res = await fetch(`${API_BASE}/paypal/capture`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ ...CTX, order_id: orderID }),
+        method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body:JSON.stringify({ ...CTX, order_id: orderID })
       });
-
-      if (res.status === 410) {
-        const payload = await res.json().catch(() => ({}));
-        const detail = payload.detail || payload || {};
-        if (detail.new_url) showExpired(detail.new_url);
-        throw new Error('payment_link_expired');
-      }
-      if (!res.ok) {
-        const t = await res.text().catch(()=> '');
-        console.error('capture ERROR:', res.status, t);
-        throw new Error(`capture_failed_${res.status}`);
-      }
+      if(res.status===410){ const p=await res.json().catch(()=>({})); const d=p.detail||p||{}; if(d.new_url) showExpired(d.new_url); throw new Error('payment_link_expired'); }
+      if(!res.ok){ console.error('capture ERROR:', res.status, await res.text().catch(()=>'')); throw new Error(`capture_failed_${res.status}`); }
       return res.json();
     }
 
-    // PayPal-кнопка (карты/PayPal)
-    function initPayPalButtons() {
+    // ------- PayPal Buttons (PayPal + карты внутри потока) -------
+    function renderPayPalButtons(){
       if (!window.paypal || typeof paypal.Buttons !== 'function') {
-        console.warn('PayPal SDK ešte nie je pripravený');
-        return;
+        console.warn('paypal.Buttons is not ready'); return;
       }
       paypal.Buttons({
-        style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
+        style: { layout:'vertical', shape:'rect', color:'gold', tagline:false, height:56 },
         createOrder: async () => await createOrderOnBackend(),
-        onApprove: async (data) => {
-          await captureOnBackend(data.orderID);
-          show($('ok-msg'));
-          openBotChat();
-        },
-        onError: (err) => {
-          console.error('PayPal onError:', err);
-          alert('Chyba pri platbe. Skúste to znovu alebo kontaktujte podporu.');
-        }
+        onApprove:  async (data) => { await captureOnBackend(data.orderID); show($('ok-msg')); openBotChat(); },
+        onError:    (err)  => { console.error('PayPal onError:', err); alert('Chyba pri platbe. Skúste to znovu.'); }
       }).render('#paypal');
     }
 
-    // Apple Pay (через PayPal Applepay component)
-    async function initApplePay() {
-      try {
-        if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) {
-          return; // не поддерживается устройством/браузером
-        }
-        if (!window.paypal || !paypal.Applepay) return;
+    // ------- Apple Pay через PayPal Applepay -------
+    async function renderApplePay(){
+      try{
+        if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) { console.log('ApplePaySession not available'); return; }
+        if (!window.paypal || !paypal.Applepay) { console.log('paypal.Applepay not ready'); return; }
 
         const applepay = paypal.Applepay();
-        const cfg = await applepay.config(); // { isEligible, countryCode, supportedNetworks, merchantCapabilities, ... }
-        if (!cfg.isEligible) return;
+        const cfg = await applepay.config();               // { isEligible, ... }
+        if (!cfg.isEligible) { console.log('Apple Pay not eligible'); return; }
 
-        // Рендерим нативную кнопку Apple Pay
-        const apContainer = $('applepay-container');
-        apContainer.innerHTML = `<apple-pay-button id="ap-btn"
-                    class="ap-btn paybtn"
-                    buttonstyle="black"
-                    type="buy"
-                    locale="sk-SK"></apple-pay-button>`;
+        $('applepay-container').innerHTML =
+          '<apple-pay-button id="ap-btn" class="ap-btn paybtn" buttonstyle="black" type="buy" locale="sk-SK"></apple-pay-button>';
 
-        $('ap-btn').addEventListener('click', async () => {
-          try {
-            // Создаём PayPal order
+        $('ap-btn').addEventListener('click', async ()=>{
+          try{
             const orderId = await createOrderOnBackend();
-
-            // Конфиг запроса Apple Pay
             const paymentRequest = {
-              countryCode: cfg.countryCode || "SK",
-              currencyCode: "EUR",
-              merchantCapabilities: cfg.merchantCapabilities || ["supports3DS"],
-              supportedNetworks: cfg.supportedNetworks || ["visa","masterCard","maestro","amex"],
-              requiredBillingContactFields: ["name", "email", "postalAddress"],
-              total: { label: "BecomingHer", amount: PRICE_EUR, type: "final" }
+              countryCode: cfg.countryCode || 'SK',
+              currencyCode: 'EUR',
+              merchantCapabilities: cfg.merchantCapabilities || ['supports3DS'],
+              supportedNetworks: cfg.supportedNetworks || ['visa','masterCard','maestro','amex'],
+              requiredBillingContactFields: ['name','email','postalAddress'],
+              total: { label:'BecomingHer', amount: PRICE_EUR, type:'final' }
             };
-
             const session = new ApplePaySession(3, paymentRequest);
 
-            // validateMerchant — через PayPal
-            session.onvalidatemerchant = (event) => {
-              applepay.validateMerchant({
-                validationUrl: event.validationURL,
-                displayName: "BecomingHer"
-              })
-              .then((res) => session.completeMerchantValidation(res.merchantSession))
-              .catch((err) => { console.error("validateMerchant error:", err); session.abort(); });
+            session.onvalidatemerchant = (e)=>{
+              applepay.validateMerchant({ validationUrl:e.validationURL, displayName:'BecomingHer' })
+                .then(res => session.completeMerchantValidation(res.merchantSession))
+                .catch(err => { console.error('validateMerchant', err); session.abort(); });
             };
 
-            // Пользователь подтвердил оплату
-            session.onpaymentauthorized = (event) => {
-              applepay.confirmOrder({
-                orderId,
-                token: event.payment.token,
-                billingContact: event.payment.billingContact
-              })
-              .then(() => captureOnBackend(orderId))
-              .then(() => {
-                session.completePayment(ApplePaySession.STATUS_SUCCESS);
-                show($('ok-msg'));
-                openBotChat();
-              })
-              .catch((err) => {
-                console.error("confirm/capture error:", err);
-                session.completePayment(ApplePaySession.STATUS_FAILURE);
-                alert('Chyba pri Apple Pay platbe. Skúste to znovu.');
-              });
+            session.onpaymentauthorized = (e)=>{
+              applepay.confirmOrder({ orderId, token:e.payment.token, billingContact:e.payment.billingContact })
+                .then(()=>captureOnBackend(orderId))
+                .then(()=>{ session.completePayment(ApplePaySession.STATUS_SUCCESS); show($('ok-msg')); openBotChat(); })
+                .catch(err=>{ console.error('confirm/capture', err); session.completePayment(ApplePaySession.STATUS_FAILURE); alert('Chyba pri Apple Pay platbe.'); });
             };
 
-            session.oncancel = () => {};
+            session.oncancel = ()=>{};
             session.begin();
-          } catch (e) {
-            console.error("Apple Pay flow failed:", e);
-            alert('Apple Pay momentálne nie je dostupné.');
-          }
+          }catch(e){ console.error('Apple Pay flow failed', e); alert('Apple Pay momentálne nie je dostupné.'); }
         });
-      } catch (e) {
-        console.warn("Apple Pay init failed", e);
-      }
+      }catch(e){ console.warn('Apple Pay init failed', e); }
     }
 
-    function init() {
+    // ------- надёжный запуск после загрузки SDK -------
+    function startAll(){
       if (!CTX.uid || !CTX.ts || !CTX.state) {
         show($('params-missing'));
-        const apple = $('applepay-container');
-        const pp = $('paypal');
-        if (apple) apple.style.display = 'none';
-        if (pp) pp.style.display = 'none';
+        ['applepay-container','paypal'].forEach(id=>{ const n=$(id); if(n) n.style.display='none'; });
         return;
       }
-      initPayPalButtons();   
-      initApplePay();        
+      renderPayPalButtons();
+      renderApplePay();
     }
 
-    window.addEventListener('load', init);
+    // если SDK уже успел загрузиться к onload — стартуем сразу,
+    // иначе дожидаемся события load на самом <script>
+    window.addEventListener('load', () => {
+      const sdk = document.getElementById('paypal-sdk');
+      if (window.paypal) {
+        startAll();
+      } else if (sdk) {
+        sdk.addEventListener('load', startAll, { once:true });
+        // safety net: если событие потеряется, попробуем через 1с
+        setTimeout(() => { if (window.paypal) startAll(); }, 1000);
+      } else {
+        // на всякий случай fallback
+        const check = setInterval(() => {
+          if (window.paypal) { clearInterval(check); startAll(); }
+        }, 100);
+      }
+    });
   </script>
 </body>
 </html>
+
