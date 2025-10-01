@@ -30,16 +30,11 @@
     .hidden{display:none}
     a.btn{display:inline-block;padding:10px 14px;border:1px solid #2b3042;border-radius:10px;color:#e9edf1;text-decoration:none}
 
-    .paybtn { width:100%; height:52px; margin:12px 0; } /* ≤ 55px */
+    .paybtn { width:100%; height:52px; margin:12px 0; } /* <= 55px — иначе SDK ругается */
 
     #applepay-container apple-pay-button.ap-btn{
-      display:block;
-      width:100%;
-      height:auto;
-      border-radius:10px;
+      display:block; width:100%; height:auto; border-radius:10px;
     }
-
-    /* горизонтальный отступ между блоками */
     .payblock { margin:12px 0; }
     .paylabel { font-size:12px; color:var(--muted); margin:0 0 6px; }
   </style>
@@ -47,10 +42,8 @@
   <!-- Apple Pay JS -->
   <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
 
-  <!-- PayPal JS SDK: только нужные источники -->
+  <!-- PayPal JS SDK: строго ОДНА строка, без переносов; applepay/googlepay НЕ указывать в enable-funding -->
   <script src="https://www.paypal.com/sdk/js?client-id=AU819ybHigRuHXuhwMIuMBk7ESAkJurInwOz3mDuW7-VpIGxkgHFpDd4bOLERLbvsOEVASNOyCGSqL8l&components=buttons,applepay,googlepay&currency=EUR&intent=capture&enable-funding=card"></script>
-
-
 </head>
 <body>
   <main class="card">
@@ -68,7 +61,7 @@
       Platba prebehla úspešne ✅ Skontrolujte správy v Telegram-bote — tam je odoslaná prvá lekcia.
     </div>
 
-    <!-- ТОЛЬКО нужные способы оплаты -->
+    <!-- Только нужные способы -->
     <div id="applepay-container" class="payblock"></div>
 
     <div id="googlepay-block" class="payblock">
@@ -100,9 +93,7 @@
   <script>
     const API_BASE = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
     const BOT = 'SDDSbecomingherCOURSE_bot';
-
-    // ДОЛЖНО СОВПАДАТЬ с ценой на бэке
-    const PRICE_EUR = "10.00";
+    const PRICE_EUR = "10.00"; // должно совпадать с бэком
 
     const $ = (id) => document.getElementById(id);
     const qs = new URLSearchParams(location.search);
@@ -173,14 +164,14 @@
       return res.json();
     }
 
-    // --- PayPal: отдельные кнопки PayPal и Карта ---
+    // -------- PayPal Buttons: PAYPAL + CARD (отдельно) ----------
     function renderPayPalButtons() {
       if (!window.paypal || typeof paypal.Buttons !== 'function') {
         console.warn('PayPal SDK ešte nie je pripravený');
         return;
       }
 
-      // PayPal (кошелёк)
+      // PayPal кошелёк
       paypal.Buttons({
         fundingSource: paypal.FUNDING.PAYPAL,
         style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false, height: 45 },
@@ -196,8 +187,9 @@
         }
       }).render('#paypal-paypal');
 
-      // Карта (через PayPal processing)
-      if (paypal.isFundingEligible && paypal.isFundingEligible(paypal.FUNDING.CARD)) {
+      // Карта (работает только если включён AC/DC (IC++))
+      const eligibleCard = paypal.isFundingEligible && paypal.isFundingEligible(paypal.FUNDING.CARD);
+      if (eligibleCard) {
         paypal.Buttons({
           fundingSource: paypal.FUNDING.CARD,
           style: { layout: 'vertical', shape: 'rect', color: 'silver', tagline: false, height: 45 },
@@ -213,21 +205,22 @@
           }
         }).render('#paypal-card');
       } else {
-        // если по какой-то причине карты не элигибл — скрываем блок
         const cardBlock = $('card-block');
         if (cardBlock) cardBlock.style.display = 'none';
       }
     }
 
-    // --- Google Pay через PayPal ---
+    // -------- Google Pay (через PayPal) ----------
     async function initGooglePay() {
       try {
-        if (!window.paypal || !paypal.Googlepay) return;
+        if (!window.paypal || !paypal.Googlepay) {
+          const g = $('googlepay-block'); if (g) g.style.display = 'none';
+          return;
+        }
         const googlepay = paypal.Googlepay();
-        const cfg = await googlepay.config(); // { isEligible, allowedPaymentMethods, ... }
-        if (!cfg.isEligible) {
-          const g = $('googlepay-block');
-          if (g) g.style.display = 'none';
+        const cfg = await googlepay.config(); // { isEligible, ... }
+        if (!cfg?.isEligible) {
+          const g = $('googlepay-block'); if (g) g.style.display = 'none';
           return;
         }
         const btn = googlepay.Buttons({
@@ -245,12 +238,11 @@
         btn.render('#googlepay');
       } catch (e) {
         console.warn("Google Pay init failed", e);
-        const g = $('googlepay-block');
-        if (g) g.style.display = 'none';
+        const g = $('googlepay-block'); if (g) g.style.display = 'none';
       }
     }
 
-    // --- Apple Pay (через PayPal Applepay component + ApplePaySession) ---
+    // -------- Apple Pay (через PayPal Applepay + ApplePaySession) ----------
     async function initApplePay() {
       try {
         if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) {
@@ -260,15 +252,11 @@
         if (!window.paypal || !paypal.Applepay) return;
 
         const applepay = paypal.Applepay();
-        const cfg = await applepay.config(); // { isEligible, countryCode, supportedNetworks, merchantCapabilities, ... }
-        if (!cfg.isEligible) { const ap = $('applepay-container'); if (ap) ap.style.display = 'none'; return; }
+        const cfg = await applepay.config(); // { isEligible, countryCode, ... }
+        if (!cfg?.isEligible) { const ap = $('applepay-container'); if (ap) ap.style.display = 'none'; return; }
 
         const apContainer = $('applepay-container');
-        apContainer.innerHTML = `<apple-pay-button id="ap-btn"
-                    class="ap-btn paybtn"
-                    buttonstyle="black"
-                    type="buy"
-                    locale="sk-SK"></apple-pay-button>`;
+        apContainer.innerHTML = `<apple-pay-button id="ap-btn" class="ap-btn paybtn" buttonstyle="black" type="buy" locale="sk-SK"></apple-pay-button>`;
 
         $('ap-btn').addEventListener('click', async () => {
           try {
@@ -326,6 +314,19 @@
       }
     }
 
+    // (опционально) маленький дебаг в консоль
+    async function debugEligibility() {
+      try {
+        console.log('Buttons?', !!(window.paypal && paypal.Buttons));
+        console.log('Card eligible:', paypal.isFundingEligible?.(paypal.FUNDING.CARD));
+        if (window.paypal?.Googlepay) {
+          const gcfg = await paypal.Googlepay().config();
+          console.log('Google Pay eligible:', gcfg?.isEligible);
+        }
+        console.log('ApplePay:', !!window.ApplePaySession, 'canMakePayments:', window.ApplePaySession?.canMakePayments?.());
+      } catch(e){ console.warn('eligibility debug error', e); }
+    }
+
     function init() {
       if (!CTX.uid || !CTX.ts || !CTX.state) {
         show($('params-missing'));
@@ -337,6 +338,7 @@
       renderPayPalButtons(); // PayPal + Card
       initGooglePay();       // Google Pay
       initApplePay();        // Apple Pay
+      debugEligibility();    // можно убрать
     }
 
     window.addEventListener('load', init);
