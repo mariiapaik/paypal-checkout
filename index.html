@@ -30,20 +30,20 @@
     .hidden{display:none}
     a.btn{display:inline-block;padding:10px 14px;border:1px solid #2b3042;border-radius:10px;color:#e9edf1;text-decoration:none}
 
-    .paybtn { width:100%; height:52px; margin:12px 0; } /* <= 55px */
+    .paybtn { width:100%; height:52px; margin:12px 0; }
 
     #applepay-container apple-pay-button.ap-btn{
-      display:block; width:100%; height:auto; border-radius:10px;
+      display:block;
+      width:100%;
+      height:auto;       
+      border-radius:10px; 
     }
-    .payblock { margin:12px 0; }
-    .paylabel { font-size:12px; color:var(--muted); margin:0 0 6px; }
   </style>
 
   <!-- Apple Pay JS -->
   <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
-
-  <!-- PayPal SDK — одна строка, без переносов. В enable-funding НЕ указывать applepay/googlepay -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AU819ybHigRuHXuhwMIuMBk7ESAkJurInwOz3mDuW7-VpIGxkgHFpDd4bOLERLbvsOEVASNOyCGSqL8l&components=buttons,applepay,googlepay&currency=EUR&intent=capture&enable-funding=card"></script>
+  <!-- PayPal JS (включаем компоненты buttons+applepay) -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AU819ybHigRuHXuhwMIuMBk7ESAkJurInwOz3mDuW7-VpIGxkgHFpDd4bOLERLbvsOEVASNOyCGSqL8l&components=buttons,applepay&currency=EUR&intent=capture"></script>
 </head>
 <body>
   <main class="card">
@@ -61,28 +61,13 @@
       Platba prebehla úspešne ✅ Skontrolujte správy v Telegram-bote — tam je odoslaná prvá lekcia.
     </div>
 
-    <!-- Только нужные способы -->
-    <div id="applepay-container" class="payblock"></div>
-
-    <div id="googlepay-block" class="payblock">
-      <p class="paylabel">Google&nbsp;Pay</p>
-      <div id="googlepay"></div>
-    </div>
-
-    <div id="paypal-block" class="payblock">
-      <p class="paylabel">PayPal</p>
-      <div id="paypal-paypal"></div>
-    </div>
-
-    <div id="card-block" class="payblock">
-      <p class="paylabel">Platba kartou</p>
-      <div id="paypal-card"></div>
-    </div>
+    <!-- Кнопки -->
+    <div id="applepay-container" style="margin:12px 0"></div>
+    <div id="paypal"></div>
 
     <div class="divider"></div>
     <p class="note">
-      Podporované sú platby prostredníctvom Apple&nbsp;Pay, Google&nbsp;Pay, PayPal a bankových kariet.
-      Ak sa platba nezačala alebo platnosť odkazu vypršala, vráťte sa do bota a kliknite na „Zaplatiť“ ešte raz.
+      Podporované sú platby prostredníctvom Apple&nbsp;Pay, PayPal a bankových kariet. Ak sa platba nezačala alebo platnosť odkazu vypršala, vráťte sa do bota a kliknite na „Zaplatiť“ ešte raz.
     </p>
 
     <div class="footer">
@@ -93,6 +78,8 @@
   <script>
     const API_BASE = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
     const BOT = 'SDDSbecomingherCOURSE_bot';
+
+    // ДОЛЖНО СОВПАДАТЬ с ценой на бэке
     const PRICE_EUR = "10.00";
 
     const $ = (id) => document.getElementById(id);
@@ -114,9 +101,10 @@
     }
 
     function showExpired(newUrl) {
-      ['applepay-container','googlepay-block','paypal-block','card-block'].forEach(id=>{
-        const el=$(id); if(el) el.style.display='none';
-      });
+      const apple = $('applepay-container');
+      const pp = $('paypal');
+      if (apple) apple.style.display = 'none';
+      if (pp) pp.style.display = 'none';
       $('expired-link').href = newUrl;
       show($('expired'));
     }
@@ -140,7 +128,7 @@
         throw new Error(`create_order_failed_${res.status}`);
       }
       const data = await res.json();
-      return data.id;
+      return data.id; // { id }
     }
 
     async function captureOnBackend(orderID) {
@@ -164,20 +152,17 @@
       return res.json();
     }
 
-    // ---------- PayPal Buttons (PAYPAL + CARD) ----------
-    function renderPayPalButtons() {
+    // PayPal-кнопка (карты/PayPal)
+    function initPayPalButtons() {
       if (!window.paypal || typeof paypal.Buttons !== 'function') {
         console.warn('PayPal SDK ešte nie je pripravený');
         return;
       }
-
-      // PayPal кошелёк
       paypal.Buttons({
-        fundingSource: paypal.FUNDING.PAYPAL,
-        style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false, height: 45 },
-        createOrder: () => createOrderOnBackend(),
-        onApprove: async ({ orderID }) => {
-          await captureOnBackend(orderID);
+        style: { layout: 'vertical', shape: 'rect', color: 'gold', tagline: false },
+        createOrder: async () => await createOrderOnBackend(),
+        onApprove: async (data) => {
+          await captureOnBackend(data.orderID);
           show($('ok-msg'));
           openBotChat();
         },
@@ -185,109 +170,35 @@
           console.error('PayPal onError:', err);
           alert('Chyba pri platbe. Skúste to znovu alebo kontaktujte podporu.');
         }
-      }).render('#paypal-paypal');
-
-      // Карта — только если включен AC/DC (IC++)
-      const eligibleCard = (paypal.isFundingEligible && paypal.FUNDING?.CARD)
-        ? paypal.isFundingEligible(paypal.FUNDING.CARD)
-        : false;
-
-      if (eligibleCard) {
-        paypal.Buttons({
-          fundingSource: paypal.FUNDING.CARD,
-          style: { layout: 'vertical', shape: 'rect', color: 'silver', tagline: false, height: 45 },
-          createOrder: () => createOrderOnBackend(),
-          onApprove: async ({ orderID }) => {
-            await captureOnBackend(orderID);
-            show($('ok-msg'));
-            openBotChat();
-          },
-          onError: (err) => {
-            console.error('Card onError:', err);
-            alert('Chyba pri platbe kartou. Skúste to znovu.');
-          }
-        }).render('#paypal-card');
-      } else {
-        const cardBlock = $('card-block');
-        if (cardBlock) cardBlock.style.display = 'none';
-      }
+      }).render('#paypal');
     }
 
-    // ---------- Google Pay (robust: Buttons() ИЛИ renderButton()) ----------
-    async function initGooglePay() {
-      try {
-        if (!window.paypal || !paypal.Googlepay) {
-          const g = $('googlepay-block'); if (g) g.style.display = 'none';
-          return;
-        }
-        const googlepay = paypal.Googlepay();
-        const cfg = await googlepay.config();
-        if (!cfg?.isEligible) {
-          const g = $('googlepay-block'); if (g) g.style.display = 'none';
-          return;
-        }
-
-        // Новый SDK может иметь либо googlepay.Buttons, либо googlepay.renderButton
-        if (typeof googlepay.Buttons === 'function') {
-          const btn = googlepay.Buttons({
-            createOrder: () => createOrderOnBackend(),
-            onApprove: async ({ orderID }) => {
-              await captureOnBackend(orderID);
-              show($('ok-msg'));
-              openBotChat();
-            },
-            onError: (err) => {
-              console.error('Google Pay error:', err);
-              alert('Chyba pri Google Pay platbe. Skúste to znovu.');
-            }
-          });
-          btn.render('#googlepay');
-        } else if (typeof googlepay.renderButton === 'function') {
-          // у некоторых билдов так
-          googlepay.renderButton('#googlepay', {
-            onClick: async () => {
-              try {
-                const orderID = await createOrderOnBackend();
-                // запуск платежа внутри PayPal Google Pay потока
-                await captureOnBackend(orderID);
-                show($('ok-msg'));
-                openBotChat();
-              } catch (e) {
-                console.error('Google Pay flow error:', e);
-                alert('Chyba pri Google Pay platbe. Skúste to znovu.');
-              }
-            }
-          });
-        } else {
-          console.warn('Google Pay component has no Buttons()/renderButton()');
-          const g = $('googlepay-block'); if (g) g.style.display = 'none';
-        }
-      } catch (e) {
-        console.warn("Google Pay init failed", e);
-        const g = $('googlepay-block'); if (g) g.style.display = 'none';
-      }
-    }
-
-    // ---------- Apple Pay ----------
+    // Apple Pay (через PayPal Applepay component)
     async function initApplePay() {
       try {
         if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) {
-          const ap = $('applepay-container'); if (ap) ap.style.display = 'none';
-          return;
+          return; // не поддерживается устройством/браузером
         }
         if (!window.paypal || !paypal.Applepay) return;
 
         const applepay = paypal.Applepay();
-        const cfg = await applepay.config();
-        if (!cfg?.isEligible) { const ap = $('applepay-container'); if (ap) ap.style.display = 'none'; return; }
+        const cfg = await applepay.config(); // { isEligible, countryCode, supportedNetworks, merchantCapabilities, ... }
+        if (!cfg.isEligible) return;
 
+        // Рендерим нативную кнопку Apple Pay
         const apContainer = $('applepay-container');
-        apContainer.innerHTML = `<apple-pay-button id="ap-btn" class="ap-btn paybtn" buttonstyle="black" type="buy" locale="sk-SK"></apple-pay-button>`;
+        apContainer.innerHTML = `<apple-pay-button id="ap-btn"
+                    class="ap-btn paybtn"
+                    buttonstyle="black"
+                    type="buy"
+                    locale="sk-SK"></apple-pay-button>`;
 
         $('ap-btn').addEventListener('click', async () => {
           try {
+            // Создаём PayPal order
             const orderId = await createOrderOnBackend();
 
+            // Конфиг запроса Apple Pay
             const paymentRequest = {
               countryCode: cfg.countryCode || "SK",
               currencyCode: "EUR",
@@ -299,6 +210,7 @@
 
             const session = new ApplePaySession(3, paymentRequest);
 
+            // validateMerchant — через PayPal
             session.onvalidatemerchant = (event) => {
               applepay.validateMerchant({
                 validationUrl: event.validationURL,
@@ -308,6 +220,7 @@
               .catch((err) => { console.error("validateMerchant error:", err); session.abort(); });
             };
 
+            // Пользователь подтвердил оплату
             session.onpaymentauthorized = (event) => {
               applepay.confirmOrder({
                 orderId,
@@ -336,37 +249,20 @@
         });
       } catch (e) {
         console.warn("Apple Pay init failed", e);
-        const ap = $('applepay-container'); if (ap) ap.style.display = 'none';
       }
-    }
-
-    // (опционально) дебаг в консоли
-    async function debugEligibility() {
-      try {
-        console.log('Buttons?', !!(window.paypal && paypal.Buttons));
-        const cardElig = (paypal.isFundingEligible && paypal.FUNDING?.CARD)
-          ? paypal.isFundingEligible(paypal.FUNDING.CARD) : false;
-        console.log('Card eligible:', cardElig);
-        if (window.paypal?.Googlepay) {
-          const gcfg = await paypal.Googlepay().config();
-          console.log('Google Pay eligible:', gcfg?.isEligible);
-        }
-        console.log('ApplePay:', !!window.ApplePaySession, 'canMakePayments:', window.ApplePaySession?.canMakePayments?.());
-      } catch(e){ console.warn('eligibility debug error', e); }
     }
 
     function init() {
       if (!CTX.uid || !CTX.ts || !CTX.state) {
         show($('params-missing'));
-        ['applepay-container','googlepay-block','paypal-block','card-block'].forEach(id=>{
-          const el=$(id); if(el) el.style.display='none';
-        });
+        const apple = $('applepay-container');
+        const pp = $('paypal');
+        if (apple) apple.style.display = 'none';
+        if (pp) pp.style.display = 'none';
         return;
       }
-      renderPayPalButtons(); // PayPal + Card
-      initGooglePay();       // Google Pay (robust)
-      initApplePay();        // Apple Pay
-      debugEligibility();    // можно убрать
+      initPayPalButtons();   
+      initApplePay();        
     }
 
     window.addEventListener('load', init);
