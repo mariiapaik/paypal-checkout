@@ -1,0 +1,127 @@
+:root{
+  --bg0:#1b0f15;
+  --bg1:#2a1521;
+  --bg2:#311728;
+  --card-top:#2d1825;
+  --card-bot:#22121c;
+  --text:#fff4fb;
+  --muted:#c7a9b7;
+  --accent:#ff4ea3;
+  --accent-2:#ff8ac2;
+  --ring:#5a1e40;
+  --radius:18px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+*{box-sizing:border-box}
+html{
+  background-color: var(--bg0);
+  background:
+    radial-gradient(900px 600px at 85% -10%, rgba(255,78,163,.18), transparent 55%),
+    radial-gradient(700px 500px at -10% 0%, rgba(255,138,194,.18), transparent 60%),
+    linear-gradient(180deg,var(--bg1),var(--bg2) 33%, var(--bg0) 100%);
+  background-repeat: no-repeat;
+  min-height: 100%;
+}
+
+html,body{height:auto}
+
+body{
+  margin:0;
+  color:var(--text);
+  font:16px/1.55 ui-sans-serif,system-ui,-apple-system,Inter,Segoe UI,Roboto,Helvetica,Arial;
+  min-height: 100svh;
+  display:grid; place-items:center;
+  padding:28px 18px calc(28px + var(--safe-b));
+  background: transparent;
+  overscroll-behavior: none;
+}
+
+.card{
+  margin:auto;
+  background:linear-gradient(180deg,var(--card-top) 0%, var(--card-bot) 100%);
+  border:1px solid var(--ring);
+  border-radius:var(--radius);
+  box-shadow:0 20px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+  overflow:hidden;
+}
+
+.content{
+  display:grid; gap:22px;
+  grid-template-columns: 1.2fr .9fr;
+  padding:clamp(18px,3.5vw,34px);
+}
+@media (max-width:860px){
+  .content{
+    grid-template-columns:1fr;
+    justify-items:center;
+  }
+  .content > section,
+  .content > .hero{
+    width:100%;
+    max-width:560px;
+  }
+  .hero{ order:-1; }
+}
+
+.head{display:flex; align-items:center; justify-content:space-between; gap:12px}
+h1{margin:0 0 8px; font-size:clamp(22px,3.2vw,28px)}
+.sub{margin:0 0 18px; color:var(--muted); font-size:14px}
+
+.label-row{display:flex; justify-content:space-between; align-items:center; gap:12px; margin:0 0 12px}
+.label-badge{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 12px; border-radius:999px;
+  color:#ffe9f6; font-weight:700; letter-spacing:.2px;
+  background:linear-gradient(135deg, #3a1630 0%, #4a183b 60%, #3a1330 100%);
+  border:1px solid rgba(255,78,163,.45);
+  box-shadow:0 4px 18px rgba(255,78,163,.18), inset 0 0 0 1px rgba(255,255,255,.04);
+  max-width:80%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.label-right{ color:var(--muted); font-size:13px; white-space:nowrap }
+@media (max-width:420px){ .label-right{display:none} }
+
+.price{
+  display:inline-block; margin:8px 0 22px; padding:10px 14px;
+  border:1px dashed rgba(255,138,194,.55);
+  border-radius:999px; color:#ffe9f6; font-weight:700; letter-spacing:.2px;
+  background:linear-gradient(180deg,rgba(255,78,163,.08),rgba(255,78,163,.03));
+}
+
+.divider{height:1px; background:linear-gradient(90deg, transparent, rgba(255,138,194,.28), transparent); margin:18px 0}
+.note{margin-top:18px; color:var(--muted); font-size:12px}
+
+.footer{margin-top:14px; display:flex; gap:10px; align-items:center; color:var(--muted); font-size:12px}
+.badge{color:#ffd9ec; background:rgba(255,78,163,.14); border:1px solid rgba(255,78,163,.4); padding:4px 10px; border-radius:999px}
+
+.warn{background:rgba(255,78,163,.12); border:1px solid rgba(255,78,163,.45); color:#ffd6e8; padding:12px 14px; border-radius:12px; margin:12px 0}
+.ok{background:#132618; border:1px solid #1f5c34; color:#c9ffd9; padding:12px 14px; border-radius:12px; margin:12px 0}
+.hidden{display:none}
+a.btn{display:inline-block;padding:10px 14px;border:1px solid rgba(255,138,194,.5);border-radius:10px;color:#ffe9f6;text-decoration:none}
+
+.paybtn { width:100%; height:52px; margin:12px 0; }
+#applepay-container apple-pay-button.ap-btn{ display:block; width:100%; height:auto; border-radius:12px; }
+
+.hero{
+  border-radius: calc(var(--radius) - 6px);
+  overflow:hidden;
+  border:1px solid rgba(255,138,194,.35);
+  box-shadow:0 8px 30px rgba(255,78,163,.15);
+  background:radial-gradient(240px 180px at 80% 10%, rgba(255,78,163,.18), transparent 60%);
+  min-height: 260px;
+  display:grid; place-items:center;
+}
+.hero img{
+  width:100%; height:100%; display:block;
+  object-fit:cover; object-position:center;
+  filter:saturate(105%);
+}
+@media (max-width:860px){
+  .hero{ min-height:auto; }
+  .hero img{
+    height:auto;
+    object-fit:contain;
+  }
+}
+
+.hint{font-size:12px; color:var(--muted); margin:8px auto 0; text-align:center}
