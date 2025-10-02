@@ -34,7 +34,7 @@
       min-height: 100%;
     }
 
-    html,body{height:100%}
+    html,body{height:auto}
 
     body{
       margin:0;
@@ -46,20 +46,6 @@
       background: transparent;           /* фон уже на html */
       overscroll-behavior: none;         /* избегаем «прозрачного» bounce */
     }
-
-    /* мягкая подложка у самого низа, чтобы точно не было белого */
-    body::after{
-      content:"";
-      position: fixed;
-      left:0; right:0; bottom:0;
-      height: max(16px, var(--safe-b));
-      pointer-events:none;
-      background: linear-gradient(180deg,
-                  rgba(27,15,21,0),
-                  rgba(27,15,21,.85) 60%,
-                  rgba(27,15,21,1) 100%);
-    }
-
 
     .card{
       width:min(980px,94vw);
@@ -89,8 +75,6 @@
       }
       .hero{ order:-1; }        /* картинка наверх */
     }
-
-    apple-pay-modal{ background: transparent !important; }
 
     .head{display:flex; align-items:center; justify-content:space-between; gap:12px}
     h1{margin:0 0 8px; font-size:clamp(22px,3.2vw,28px)}
