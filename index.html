@@ -5,52 +5,121 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Platba za kurz</title>
   <style>
-    :root { --bg:#0b0c10; --card:#15171c; --text:#e9edf1; --muted:#98a2b3; --radius:16px; }
-    *{box-sizing:border-box} html,body{height:100%}
+    /* === Pink theme tokens === */
+    :root{
+      --bg0:#1b0f15;            /* page backdrop (very dark plum) */
+      --bg1:#2a1521;            /* gradient stop 1 */
+      --bg2:#311728;            /* gradient stop 2 */
+      --card-top:#2d1825;       /* card gradient top */
+      --card-bot:#22121c;       /* card gradient bottom */
+      --text:#fff4fb;           /* primary text */
+      --muted:#c7a9b7;          /* muted text */
+      --accent:#ff4ea3;         /* pink accent */
+      --accent-2:#ff8ac2;       /* light pink */
+      --ring:#5a1e40;           /* borders */
+      --radius:18px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
     body{
-      margin:0; background:radial-gradient(1200px 600px at 80% -10%, #1b1e27 0, #0b0c10 55%);
-      color:var(--text); font:16px/1.5 ui-sans-serif,system-ui,-apple-system,Inter,Segoe UI,Roboto,Helvetica,Arial;
-      display:grid; place-items:center; padding:24px;
+      margin:0;
+      color:var(--text);
+      font:16px/1.55 ui-sans-serif,system-ui,-apple-system,Inter,Segoe UI,Roboto,Helvetica,Arial;
+      background:
+        radial-gradient(900px 600px at 85% -10%, rgba(255,78,163,.18), transparent 55%),
+        radial-gradient(700px 500px at -10% 0%, rgba(255,138,194,.18), transparent 60%),
+        linear-gradient(180deg,var(--bg1),var(--bg2) 33%, var(--bg0) 100%);
+      display:grid; place-items:center; padding:28px;
     }
+
     .card{
-      width:min(680px,92vw); background:linear-gradient(180deg,#171a20,#12141a);
-      border:1px solid #242735; border-radius:var(--radius);
-      box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.02);
-      padding:clamp(20px,3.5vw,36px);
+      width:min(980px,94vw);
+      background:linear-gradient(180deg,var(--card-top) 0%, var(--card-bot) 100%);
+      border:1px solid var(--ring);
+      border-radius:var(--radius);
+      box-shadow:
+        0 20px 50px rgba(0,0,0,.45),
+        inset 0 1px 0 rgba(255,255,255,.04);
+      overflow:hidden;
     }
-    .head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
-    h1{margin:0 0 6px; font-size:clamp(22px,3.2vw,28px)}
+
+    /* Two-column layout on wide screens */
+    .content{
+      display:grid; gap:22px;
+      grid-template-columns: 1.2fr .9fr;
+      padding:clamp(18px,3.5vw,34px);
+    }
+    @media (max-width:860px){
+      .content{ grid-template-columns: 1fr; }
+      .hero{ order:-1; }
+    }
+
+    .head{display:flex; align-items:center; justify-content:space-between; gap:12px}
+    h1{margin:0 0 8px; font-size:clamp(22px,3.2vw,28px)}
     .sub{margin:0 0 18px; color:var(--muted); font-size:14px}
-    .price{display:inline-block; margin:10px 0 22px; padding:8px 12px; border:1px dashed #2b3042; border-radius:999px; color:#cbd5e1; font-weight:600}
-    .divider{height:1px; background:#222532; margin:18px 0}
-    .note{margin-top:18px; color:var(--muted); font-size:12px}
-    .footer{margin-top:14px; display:flex; gap:10px; align-items:center; color:var(--muted); font-size:12px}
-    .badge{color:#c7d2fe; background:#1d2140; border:1px solid #2a2f6c; padding:4px 8px; border-radius:999px}
-    .warn{background:#2a1320;border:1px solid #53233f;color:#ffd0d8;padding:12px 14px;border-radius:12px;margin:12px 0}
-    .ok{background:#112618;border:1px solid #1f5c34;color:#c9ffd9;padding:12px 14px;border-radius:12px;margin:12px 0}
-    .hidden{display:none}
-    a.btn{display:inline-block;padding:10px 14px;border:1px solid #2b3042;border-radius:10px;color:#e9edf1;text-decoration:none}
 
-    .paybtn { width:100%; height:52px; margin:12px 0; }
-
+    /* Course label (pill) */
+    .label-row{display:flex; justify-content:space-between; align-items:center; gap:12px; margin:0 0 12px}
     .label-badge{
       display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      background:linear-gradient(135deg,#1d2140 0%,#222b4d 60%,#1b2341 100%);
-      border:1px solid #2a2f6c; color:#e6eaff; font-weight:600; white-space:nowrap;
-      box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
+      padding:6px 12px; border-radius:999px;
+      color:#ffe9f6; font-weight:700; letter-spacing:.2px;
+      background:linear-gradient(135deg, #3a1630 0%, #4a183b 60%, #3a1330 100%);
+      border:1px solid rgba(255,78,163,.45);
+      box-shadow: 0 4px 18px rgba(255,78,163,.18), inset 0 0 0 1px rgba(255,255,255,.04);
     }
-    .label-row{margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; gap:10px}
-    .label-muted{color:#98a2b3; font-size:12px}
+    .label-right{ color:var(--muted); font-size:13px }
 
-    #applepay-container apple-pay-button.ap-btn{ display:block; width:100%; height:auto; border-radius:10px; }
+    .price{
+      display:inline-block; margin:8px 0 22px; padding:10px 14px;
+      border:1px dashed rgba(255,138,194,.55);
+      border-radius:999px; color:#ffe9f6; font-weight:700; letter-spacing:.2px;
+      background:linear-gradient(180deg,rgba(255,78,163,.08),rgba(255,78,163,.03));
+    }
+
+    .divider{height:1px; background:linear-gradient(90deg, transparent, rgba(255,138,194,.28), transparent); margin:18px 0}
+    .note{margin-top:18px; color:var(--muted); font-size:12px}
+
+    .footer{margin-top:14px; display:flex; gap:10px; align-items:center; color:var(--muted); font-size:12px}
+    .badge{color:#ffd9ec; background:rgba(255,78,163,.14); border:1px solid rgba(255,78,163,.4); padding:4px 10px; border-radius:999px}
+
+    .warn{
+      background:rgba(255,78,163,.12);
+      border:1px solid rgba(255,78,163,.45);
+      color:#ffd6e8; padding:12px 14px; border-radius:12px; margin:12px 0
+    }
+    .ok{
+      background:#132618; border:1px solid #1f5c34; color:#c9ffd9; padding:12px 14px; border-radius:12px; margin:12px 0
+    }
+    .hidden{display:none}
+    a.btn{display:inline-block;padding:10px 14px;border:1px solid rgba(255,138,194,.5);border-radius:10px;color:#ffe9f6;text-decoration:none}
+
+    /* Buttons containers */
+    .paybtn { width:100%; height:52px; margin:12px 0; }
+    #applepay-container apple-pay-button.ap-btn{ display:block; width:100%; height:auto; border-radius:12px; }
+
+    /* Hero image */
+    .hero{
+      border-radius: calc(var(--radius) - 6px);
+      overflow:hidden;
+      border:1px solid rgba(255,138,194,.35);
+      box-shadow: 0 8px 30px rgba(255,78,163,.15);
+      background:radial-gradient(240px 180px at 80% 10%, rgba(255,78,163,.18), transparent 60%);
+      min-height: 260px;
+      display:grid; place-items:center;
+    }
+    .hero img{
+      width:100%; height:100%; object-fit:cover; display:block;
+      filter:saturate(105%);
+    }
+    .hint{font-size:12px; color:var(--muted); margin-top:8px}
   </style>
 
   <!-- Apple Pay SDK -->
   <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
 
-  <!-- PayPal SDK (СТАТИЧЕСКИ, КАК В РАБОТАЮЩЕЙ ВЕРСИИ)
-       ВАЖНО: client-id и currency ДОЛЖНЫ СОВПАДАТЬ с backend settings -->
+  <!-- PayPal SDK (как в стабильной версии; client-id/currency должны совпадать с backend) -->
   <script
     id="paypal-sdk"
     src="https://www.paypal.com/sdk/js?client-id=AU819ybHigRuHXuhwMIuMBk7ESAkJurInwOz3mDuW7-VpIGxkgHFpDd4bOLERLbvsOEVASNOyCGSqL8l&components=buttons,applepay&currency=EUR&intent=capture"
@@ -59,43 +128,55 @@
 </head>
 <body>
   <main class="card">
-    <div class="label-row">
-      <div id="course-label" class="label-badge">—</div>
-      <div class="label-muted" id="course-label-right"></div>
-    </div>
+    <div class="content">
+      <!-- Text + Buttons column -->
+      <section>
+        <div class="label-row">
+          <div id="course-label" class="label-badge">—</div>
+          <div class="label-right" id="course-label-right"></div>
+        </div>
 
-    <div class="head">
-      <div>
-        <h1>Platba za kurz</h1>
-        <p class="sub">Po úspešnej platbe dostanete prístup k lekciám v Telegram-bote.</p>
-      </div>
-    </div>
+        <div class="head">
+          <div>
+            <h1>Platba za kurz</h1>
+            <p class="sub">Po úspešnej platbe dostanete prístup k lekciám v Telegram-bote.</p>
+          </div>
+        </div>
 
-    <div class="price" id="price"></div>
+        <div class="price" id="price">—</div>
 
-    <div id="params-missing" class="warn hidden">
-      Váš odkaz neobsahuje žiadne parametre. Otvorte stránku platby znovu z bota – kliknite na „Zaplatiť“.
-    </div>
-    <div id="expired" class="warn hidden">
-      Odkaz na platbu vypršal. <a id="expired-link" class="btn" href="#">Získať nový odkaz</a>
-    </div>
-    <div id="ok-msg" class="ok hidden">
-      Platba prebehla úspešne ✅ Skontrolujte správy v Telegram-bote — tam je odoslaná prvá lekcia.
-    </div>
+        <div id="params-missing" class="warn hidden">
+          Váš odkaz neobsahuje žiadne parametre. Otvorte stránku platby znovu z bota – kliknite na „Zaplatiť“.
+        </div>
+        <div id="expired" class="warn hidden">
+          Odkaz na platbu vypršal. <a id="expired-link" class="btn" href="#">Získať nový odkaz</a>
+        </div>
+        <div id="ok-msg" class="ok hidden">
+          Platba prebehla úspešne ✅ Skontrolujte správy v Telegram-bote — tam je odoslaná prvá lekcia.
+        </div>
 
-    <!-- Кнопки -->
-    <div id="applepay-container" style="margin:12px 0"></div>
-    <div id="paypal"></div>
+        <!-- Кнопки -->
+        <div id="applepay-container" style="margin:12px 0"></div>
+        <div id="paypal"></div>
 
-    <div class="divider"></div>
-    <p class="note">
-      Podporované sú platby prostredníctvom Apple&nbsp;Pay, PayPal a bankových kariet.
-      Ak sa platba nezačala alebo platnosť odkazu vypršala, vráťte sa do bota a kliknite na „Zaplatiť“ ešte raz.
-    </p>
+        <div class="divider"></div>
+        <p class="note">
+          Podporované sú platby prostredníctvom Apple&nbsp;Pay, PayPal a bankových kariet.
+          Ak sa platba nezačala alebo platnosť odkazu vypršala, vráťte sa do bota a kliknite na „Zaplatiť“ ešte raz.
+        </p>
 
-    <div class="footer">
-      <span class="badge">Bezpečná platba</span><span>Spracovanie prostredníctvom PayPal</span>
+        <div class="footer">
+          <span class="badge">Bezpečná platba</span><span>Spracovanie prostredníctvom PayPal</span>
+        </div>
+      </section>
+
+      <!-- Hero / Image column -->
+      <aside class="hero">
+        <!-- ЗАМЕНИ свой путь к изображению. Можно держать локально: /assets/hero.jpg -->
+        <img src="./assets/hero.jpeg" alt="Kurzy – vizuál" />
+      </aside>
     </div>
+    <div class="hint" style="padding:0 20px 16px">Toto je bezpečná stránka platby. Po zaplatení vás presmerujeme späť do Telegram bota.</div>
   </main>
 
   <script>
@@ -130,7 +211,6 @@
       }
     }
 
-    // тянем client_id/currency/amount/label (для UI и Apple Pay)
     async function fetchPayConfig() {
       const url = new URL(`${API_BASE}/paypal/page-config`);
       url.searchParams.set('uid', String(CTX.uid));
@@ -148,7 +228,6 @@
       return res.json(); // { client_id, currency, amount, label }
     }
 
-    // backend create/capture
     async function createOrderOnBackend() {
       const res = await fetch(`${API_BASE}/paypal/create-order`, {
         method: 'POST',
@@ -187,14 +266,14 @@
       return res.json();
     }
 
-    // ждём готовности SDK, даже если он ещё подгружается
-    function waitForPayPal(maxMs = 5000, step = 100) {
+    /* ждём готовности SDK, чтобы убрать гонки */
+    function waitForPayPal(maxMs = 7000, step = 120) {
       return new Promise((resolve, reject) => {
-        const start = Date.now();
-        (function tick(){
+        const t0 = Date.now();
+        (function loop(){
           if (window.paypal && typeof window.paypal.Buttons === 'function') return resolve();
-          if (Date.now() - start > maxMs) return reject(new Error('paypal_sdk_not_ready'));
-          setTimeout(tick, step);
+          if (Date.now() - t0 > maxMs) return reject(new Error('paypal_sdk_not_ready'));
+          setTimeout(loop, step);
         })();
       });
     }
@@ -279,25 +358,12 @@
         // UI
         const sign = currencySymbol(cfg.currency);
         const price = $('price');
-        if (price) {
-          price.textContent = sign ? `${sign}${cfg.amount} • jednorazovo`
-                                   : `${cfg.amount} ${cfg.currency} • jednorazovo`;
-        }
+        if (price) price.textContent = sign ? `${sign}${cfg.amount} • jednorazovo` : `${cfg.amount} ${cfg.currency} • jednorazovo`;
         const lb = $('course-label'); if (lb) lb.textContent = label;
         const lr = $('course-label-right'); if (lr) lr.textContent = sign ? `${sign}${cfg.amount}` : `${cfg.amount} ${cfg.currency}`;
         document.title = `${label} — Platba`;
 
-        // (необязательная проверка консистентности)
-        const sdkSrc = document.getElementById('paypal-sdk')?.src || '';
-        if (!sdkSrc.includes(encodeURIComponent(cfg.client_id))) {
-          console.warn('[pay] client_id v SDK не совпадает с backend. Проверь settings.paypal_client_id и тег в <head>.');
-        }
-        if (!sdkSrc.includes(`currency=${encodeURIComponent(cfg.currency)}`)) {
-          console.warn('[pay] currency v SDK не совпадает с backend. Проверь settings.currency и тег в <head>.');
-        }
-
-        // ждём SDK → рендерим кнопки → Apple Pay
-        await waitForPayPal(7000, 100);
+        await waitForPayPal(7000, 120);
         initPayPalButtons();
         await initApplePay(cfg.currency, cfg.amount, label);
 
