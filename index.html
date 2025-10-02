@@ -31,10 +31,8 @@
     .hidden{display:none}
     a.btn{display:inline-block;padding:10px 14px;border:1px solid #2b3042;border-radius:10px;color:#e9edf1;text-decoration:none}
 
-    /* кнопки */
     .paybtn { width:100%; height:52px; margin:12px 0; }
 
-    /* красивый бейдж с именем курса (label) */
     .label-badge{
       display:inline-flex; align-items:center; gap:8px;
       padding:6px 10px; border-radius:999px;
@@ -45,13 +43,12 @@
     .label-row{margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; gap:10px}
     .label-muted{color:#98a2b3; font-size:12px}
 
-    /* Apple Pay web-компонент */
     #applepay-container apple-pay-button.ap-btn{
       display:block; width:100%; height:auto; border-radius:10px;
     }
   </style>
 
-  <!-- Apple Pay JS (нужен для Safari/Apple Pay) -->
+  <!-- Apple Pay SDK -->
   <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
 </head>
 <body>
@@ -99,7 +96,6 @@
     const API_BASE = 'https://telegram-course-bot-lasico4qya-lm.a.run.app';
     const BOT = 'SDDSbecomingherCOURSE_bot';
 
-    // helpers
     const $ = (id) => document.getElementById(id);
     const qs = new URLSearchParams(location.search);
     const CTX = {
@@ -128,7 +124,6 @@
       }
     }
 
-    // 1) конфиг (client_id, currency, amount, label)
     async function fetchPayConfig() {
       const url = new URL(`${API_BASE}/paypal/page-config`);
       url.searchParams.set('uid', String(CTX.uid));
@@ -146,61 +141,48 @@
       return res.json(); // { client_id, currency, amount, label }
     }
 
-    // 2) надёжная загрузка PayPal SDK: инъекция + ожидание появления window.paypal
-    function sdkUrl(clientId, currency) {
-      return `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&components=buttons,applepay&currency=${encodeURIComponent(currency)}&intent=capture`;
-    }
-    function loadPayPalSdk(clientId, currency, {retries=2, waitMs=250} = {}) {
+    // === Надёжная загрузка SDK через data-* атрибуты (без querystring) ===
+    function loadPayPalSdkViaDataAttrs({ client_id, currency }) {
       return new Promise((resolve, reject) => {
+        const cid = (client_id || '').trim();
+        const cur = (currency || '').trim().toUpperCase();
+        if (!cid || !cur) return reject(new Error('invalid_paypal_config'));
+
         if (window.paypal && typeof window.paypal.Buttons === 'function') return resolve();
 
-        const id = 'paypal-sdk';
-        const src = sdkUrl(clientId, currency);
-        let tag = document.getElementById(id);
+        let tag = document.getElementById('paypal-sdk');
+        if (tag) tag.remove();
 
-        if (!tag) {
-          tag = document.createElement('script');
-          tag.id = id;
-          tag.src = src;
-          tag.async = true;
-          tag.onload = () => console.log('[pay] SDK tag onload');
-          tag.onerror = (e) => console.error('[pay] SDK network/CSP error', e);
-          document.head.appendChild(tag);
-          console.log('[pay] Injected PayPal SDK:', src);
-        } else if (tag.src !== src) {
-          // заменить старый тег на новый (если поменяли валюту/аккаунт)
-          tag.remove();
-          const t2 = document.createElement('script');
-          t2.id = id; t2.src = src; t2.async = true;
-          t2.onload = () => console.log('[pay] SDK tag onload (replaced)');
-          t2.onerror = (e) => console.error('[pay] SDK network/CSP error (replaced)', e);
-          document.head.appendChild(t2);
-          console.log('[pay] Re-injected PayPal SDK:', src);
-        }
+        tag = document.createElement('script');
+        tag.id = 'paypal-sdk';
+        tag.src = 'https://www.paypal.com/sdk/js';
+        tag.async = true;
+        // ключевые параметры — только как data-атрибуты
+        tag.dataset.clientId   = cid;
+        tag.dataset.components = 'buttons,applepay';
+        tag.dataset.currency   = cur;
+        tag.dataset.intent     = 'capture';
 
-        let attempts = (retries * 12) + 12; // ~3–4 сек ожидания
+        tag.onload  = () => console.log('[pay] PayPal SDK tag onload');
+        tag.onerror = (e) => console.error('[pay] PayPal SDK network/CSP error', e);
+
+        document.head.appendChild(tag);
+        console.log('[pay] Injected PayPal SDK via data-*');
+
+        // ждём появления window.paypal.Buttons
+        let attempts = 16; // ~4s
         const timer = setInterval(() => {
           if (window.paypal && typeof window.paypal.Buttons === 'function') {
             clearInterval(timer);
-            return resolve();
-          }
-          if (--attempts <= 0) {
+            resolve();
+          } else if (--attempts <= 0) {
             clearInterval(timer);
-            const err = new Error('paypal_sdk_timeout_or_blocked');
-            const warn = document.createElement('div');
-            warn.className = 'warn injected';
-            warn.textContent = 'Nepodarilo sa načítať PayPal skript. Vypnite blokovanie reklám alebo obnovte stránku.';
-            const card = document.querySelector('.card');
-            if (card && !document.querySelector('.warn.injected')) {
-              card.insertBefore(warn, document.getElementById('paypal'));
-            }
-            return reject(err);
+            reject(new Error('paypal_sdk_timeout_or_blocked'));
           }
-        }, waitMs);
+        }, 250);
       });
     }
 
-    // 3) order/capture — как раньше
     async function createOrderOnBackend() {
       const res = await fetch(`${API_BASE}/paypal/create-order`, {
         method: 'POST',
@@ -219,6 +201,7 @@
       }
       const data = await res.json(); return data.id;
     }
+
     async function captureOnBackend(orderID) {
       const res = await fetch(`${API_BASE}/paypal/capture`, {
         method: 'POST',
@@ -238,7 +221,6 @@
       return res.json();
     }
 
-    // 4) PayPal кнопка
     function initPayPalButtons() {
       if (!window.paypal || typeof paypal.Buttons !== 'function') {
         console.warn('PayPal SDK ešte nie je pripravený'); return;
@@ -257,7 +239,6 @@
       }).render('#paypal');
     }
 
-    // 5) Apple Pay через PayPal Applepay component (динамические label/currency/amount)
     async function initApplePay(currency, amount, label) {
       try {
         if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) return;
@@ -304,7 +285,6 @@
       } catch (e) { console.warn("Apple Pay init failed", e); }
     }
 
-    // 6) Инициализация страницы
     async function init() {
       if (!CTX.uid || !CTX.ts || !CTX.state) {
         show($('params-missing'));
@@ -318,7 +298,7 @@
         const cfg = await fetchPayConfig(); // { client_id, currency, amount, label }
         const label = cfg.label || 'BecomingHer';
 
-        // UI: цена/лейбл/титл
+        // UI
         const sign = currencySymbol(cfg.currency);
         const price = $('price');
         if (price) {
@@ -329,8 +309,8 @@
         const labelRight = $('course-label-right'); if (labelRight) labelRight.textContent = sign ? `${sign}${cfg.amount}` : `${cfg.amount} ${cfg.currency}`;
         document.title = `${label} — Platba`;
 
-        // PayPal SDK -> кнопки -> Apple Pay
-        await loadPayPalSdk(cfg.client_id, cfg.currency, {retries: 2, waitMs: 250});
+        // SDK → кнопки → Apple Pay
+        await loadPayPalSdkViaDataAttrs(cfg);
         initPayPalButtons();
         await initApplePay(cfg.currency, cfg.amount, label);
 
