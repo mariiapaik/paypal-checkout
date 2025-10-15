@@ -123,40 +123,58 @@ async function initApplePay(currency, amount, label) {
     if (!cfg.isEligible) return;
 
     const apContainer = $('applepay-container');
-    apContainer.innerHTML = `<apple-pay-button id="ap-btn" class="ap-btn paybtn" buttonstyle="black" type="buy" locale="sk-SK"></apple-pay-button>`;
+    apContainer.innerHTML =
+      `<apple-pay-button id="ap-btn" class="ap-btn paybtn" buttonstyle="black" type="buy" locale="sk-SK"></apple-pay-button>`;
 
-    $('ap-btn').addEventListener('click', async () => {
-      try {
-        const orderId = await createOrderOnBackend();
-        const paymentRequest = {
-          countryCode: cfg.countryCode || "SK",
-          currencyCode: (currency || "EUR").toUpperCase(),
-          merchantCapabilities: cfg.merchantCapabilities || ["supports3DS"],
-          supportedNetworks: cfg.supportedNetworks || ["visa","masterCard","maestro","amex"],
-          requiredBillingContactFields: ["name", "email", "postalAddress"],
-          total: { label: label || "BecomingHer", amount: String(amount), type: "final" }
-        };
-        const session = new ApplePaySession(3, paymentRequest);
+    $('ap-btn').addEventListener('click', () => {
+      const paymentRequest = {
+        countryCode: cfg.countryCode || "SK",
+        currencyCode: (currency || "EUR").toUpperCase(),
+        merchantCapabilities: cfg.merchantCapabilities || ["supports3DS"],
+        supportedNetworks: cfg.supportedNetworks || ["visa","masterCard","maestro","amex"],
+        requiredBillingContactFields: ["name", "email", "postalAddress"],
+        total: { label: label || "BecomingHer", amount: String(amount), type: "final" }
+      };
 
-        session.onvalidatemerchant = (event) => {
-          applepay.validateMerchant({ validationUrl: event.validationURL, displayName: label || "BecomingHer" })
-            .then((res) => session.completeMerchantValidation(res.merchantSession))
-            .catch((err) => { console.error("validateMerchant error:", err); session.abort(); });
-        };
-        session.onpaymentauthorized = (event) => {
-          applepay.confirmOrder({ orderId, token: event.payment.token, billingContact: event.payment.billingContact })
-            .then(() => captureOnBackend(orderId))
-            .then(() => { session.completePayment(ApplePaySession.STATUS_SUCCESS); show($('ok-msg')); openBotChat(); })
-            .catch((err) => { console.error("confirm/capture error:", err); session.completePayment(ApplePaySession.STATUS_FAILURE); alert('Chyba pri Apple Pay platbe. Skúste to znovu.'); });
-        };
-        session.oncancel = () => {};
-        session.begin();
-      } catch (e) {
-        console.error("Apple Pay flow failed:", e);
-        alert('Apple Pay momentálne nie je dostupné.');
-      }
+      const session = new ApplePaySession(3, paymentRequest);
+
+      session.onvalidatemerchant = (event) => {
+        applepay.validateMerchant({
+          validationUrl: event.validationURL,
+          displayName: label || "BecomingHer"
+        })
+        .then(res => session.completeMerchantValidation(res.merchantSession))
+        .catch(err => { console.error("validateMerchant error:", err); session.abort(); });
+      };
+
+      session.onpaymentauthorized = async (event) => {
+        try {
+          const orderId = await createOrderOnBackend();
+
+          await applepay.confirmOrder({
+            orderId,
+            token: event.payment.token,
+            billingContact: event.payment.billingContact
+          });
+
+          await captureOnBackend(orderId);
+
+          session.completePayment(ApplePaySession.STATUS_SUCCESS);
+          show($('ok-msg'));
+          openBotChat();
+        } catch (err) {
+          console.error("confirm/capture error:", err);
+          session.completePayment(ApplePaySession.STATUS_FAILURE);
+          alert('Chyba pri Apple Pay platbe. Skúste to znovu.');
+        }
+      };
+
+      session.oncancel = () => {};
+      session.begin();
     });
-  } catch (e) { console.warn("Apple Pay init failed", e); }
+  } catch (e) {
+    console.warn("Apple Pay init failed", e);
+  }
 }
 
 async function init() {
